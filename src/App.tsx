@@ -24,6 +24,7 @@ import Resources from "@/pages/Resources";
 import Tickets from "@/pages/Tickets";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
+import AddEmployee from './pages/AddEmployee';
 
 const queryClient = new QueryClient();
 
@@ -31,6 +32,7 @@ const queryClient = new QueryClient();
 const AppRoutes = () => (
   <Layout>
     <Routes>
+      <Route path="/add-employee" element={<AddEmployee />} />
       <Route path="/" element={<Dashboard />} />
       <Route path="/revenue" element={<Revenue />} />
       <Route path="/leaderboard" element={<Leaderboard />} />

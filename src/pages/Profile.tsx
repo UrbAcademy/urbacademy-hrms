@@ -1,92 +1,209 @@
-import { useState } from "react";
-import { User, Mail, Phone, Lock, Bell, Palette, Globe, LogOut, Camera, Save } from "lucide-react";
-import { currentUser } from "@/lib/mock-data";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabaseClient";
+import { User, Lock, Save, Loader2 } from "lucide-react";
 
 export default function Profile() {
-  const [name, setName] = useState(currentUser.name);
-  const [phone, setPhone] = useState(currentUser.phone);
+  const [loading, setLoading] = useState(true);
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
+  // User Data State
+  const [email, setEmail] = useState("");
+  const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
+  
+  // Password State
+  const [newPassword, setNewPassword] = useState("");
+
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  async function fetchUserData() {
+    try {
+      const { data: { user }, error } = await supabase.auth.getUser();
+      
+      if (error) throw error;
+      
+      if (user) {
+        setEmail(user.email || "");
+        // Supabase stores extra user info in the user_metadata object
+        setFullName(user.user_metadata?.full_name || "");
+        setPhone(user.user_metadata?.phone || "");
+      }
+    } catch (error) {
+      console.error("Error loading user:", error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // --- BULLETPROOF SAVE PROFILE INFO ---
+  async function handleSaveProfile() {
+    try {
+      setSavingProfile(true);
+      
+      // 1. Force Supabase to grab the current session from the browser
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        console.error("Session fetch error:", sessionError);
+        return alert("Failed to get session. Please log out and log back in.");
+      }
+
+      if (!session) {
+        console.warn("Session is NULL!");
+        return alert("Your session has expired! You must log out and log back in.");
+      }
+
+      console.log("Valid session found for user:", session.user.id);
+
+      // 2. Now attempt the update
+      const { error: updateError } = await supabase.auth.updateUser({
+        data: { 
+          full_name: fullName, 
+          phone: phone 
+        }
+      });
+
+      if (updateError) {
+        console.error("Update failed:", updateError);
+        throw updateError;
+      }
+      
+      alert("Profile updated successfully!");
+    } catch (error: any) {
+      console.error("Error updating profile:", error);
+      alert("Error updating profile: " + error.message);
+    } finally {
+      setSavingProfile(false);
+    }
+  }
+
+  // --- SAVE NEW PASSWORD ---
+  async function handleChangePassword() {
+    if (newPassword.length < 6) {
+      return alert("Password must be at least 6 characters long.");
+    }
+
+    try {
+      setSavingPassword(true);
+      
+      // Always good to check session here too just in case!
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return alert("Session expired. Please log in again.");
+
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+      
+      alert("Password changed successfully!");
+      setNewPassword(""); // Clear the input field
+    } catch (error: any) {
+      alert("Error changing password: " + error.message);
+    } finally {
+      setSavingPassword(false);
+    }
+  }
+
+  if (loading) {
+    return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
+  }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
-      {/* Avatar */}
-      <div className="rounded-2xl border border-border bg-card p-6 flex flex-col items-center">
-        <div className="relative mb-4">
-          <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary text-primary-foreground text-2xl font-bold">
-            RS
+    <div className="max-w-3xl mx-auto space-y-6">
+      
+      {/* Header Card */}
+      <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center">
+        <div className="h-24 w-24 rounded-full bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold mb-4">
+          {fullName ? fullName.charAt(0).toUpperCase() : <User size={40} />}
+        </div>
+        <h2 className="text-2xl font-bold text-card-foreground">{fullName || "Add your name below"}</h2>
+        <p className="text-muted-foreground">{email}</p>
+      </div>
+
+      {/* Personal Information Form */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <User className="text-primary" />
+          <h3 className="text-lg font-semibold text-card-foreground">Personal Information</h3>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Full Name</label>
+            <input 
+              type="text" 
+              value={fullName}
+              onChange={(e) => setFullName(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
+              placeholder="e.g. Rahul Sharma"
+            />
           </div>
-          <button className="absolute bottom-0 right-0 rounded-full bg-accent p-1.5 border border-border hover:bg-muted transition-colors">
-            <Camera className="h-3.5 w-3.5 text-foreground" />
+
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
+            <input 
+              type="text" 
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
+              placeholder="+91 98765 43210"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">Email (Cannot be changed)</label>
+            <input 
+              type="email" 
+              value={email}
+              disabled
+              className="w-full rounded-lg border border-border bg-muted p-3 text-muted-foreground cursor-not-allowed"
+            />
+          </div>
+
+          <button 
+            onClick={handleSaveProfile}
+            disabled={savingProfile}
+            className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
+          >
+            {savingProfile ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
+            Save Changes
           </button>
         </div>
-        <p className="text-lg font-semibold text-card-foreground">{currentUser.name}</p>
-        <p className="text-sm text-muted-foreground">{currentUser.role} • {currentUser.employeeId}</p>
       </div>
 
-      {/* Personal Info */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-          <User className="h-5 w-5 text-primary" /> Personal Information
-        </h3>
-        <div className="space-y-3">
-          <div>
-            <label className="mb-1 block text-sm font-medium text-card-foreground">Full Name</label>
-            <input value={name} onChange={(e) => setName(e.target.value)} className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-card-foreground">Phone</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className="w-full rounded-lg border border-input bg-background px-4 py-2 text-sm text-foreground focus:border-primary focus:outline-none" />
-          </div>
-          <div>
-            <label className="mb-1 block text-sm font-medium text-card-foreground">Email</label>
-            <input value={currentUser.email} disabled className="w-full rounded-lg border border-input bg-muted px-4 py-2 text-sm text-muted-foreground cursor-not-allowed" />
-          </div>
+      {/* Security / Password Change */}
+      <div className="rounded-2xl border border-border bg-card p-6">
+        <div className="flex items-center gap-2 mb-6">
+          <Lock className="text-primary" />
+          <h3 className="text-lg font-semibold text-card-foreground">Security</h3>
         </div>
-        <button className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors">
-          <Save className="h-4 w-4" /> Save Changes
-        </button>
-      </div>
 
-      {/* Security */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-          <Lock className="h-5 w-5 text-primary" /> Security
-        </h3>
-        <button className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors">
-          Change Password
-        </button>
-      </div>
+        <div className="space-y-4 max-w-md">
+          <div>
+            <label className="block text-sm font-medium text-muted-foreground mb-1">New Password</label>
+            <input 
+              type="password" 
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
+              placeholder="Enter new password"
+            />
+          </div>
 
-      {/* Preferences */}
-      <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
-        <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-          <Palette className="h-5 w-5 text-primary" /> Preferences
-        </h3>
-        <div className="space-y-3">
-          {[
-            { icon: Bell, label: "Email Notifications", desc: "Receive email updates" },
-            { icon: Palette, label: "Theme", desc: "Dark mode (default)" },
-            { icon: Globe, label: "Language", desc: "English" },
-          ].map((item) => (
-            <div key={item.label} className="flex items-center justify-between rounded-lg bg-accent/30 p-3">
-              <div className="flex items-center gap-3">
-                <item.icon className="h-4 w-4 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium text-card-foreground">{item.label}</p>
-                  <p className="text-xs text-muted-foreground">{item.desc}</p>
-                </div>
-              </div>
-              <div className="h-5 w-9 rounded-full bg-primary/20 p-0.5">
-                <div className="h-4 w-4 rounded-full bg-primary translate-x-4" />
-              </div>
-            </div>
-          ))}
+          <button 
+            onClick={handleChangePassword}
+            disabled={savingPassword || !newPassword}
+            className="flex items-center gap-2 bg-transparent border border-border text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted disabled:opacity-50 transition-colors"
+          >
+            {savingPassword ? <Loader2 className="animate-spin h-4 w-4" /> : "Update Password"}
+          </button>
         </div>
       </div>
 
-      {/* Logout */}
-      <button className="flex w-full items-center justify-center gap-2 rounded-2xl border border-destructive/20 bg-destructive/5 px-4 py-3 text-sm font-medium text-destructive hover:bg-destructive/10 transition-colors">
-        <LogOut className="h-4 w-4" /> Logout
-      </button>
     </div>
   );
 }
