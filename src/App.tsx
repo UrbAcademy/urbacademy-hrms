@@ -2,10 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Layout from "@/components/Layout";
 import Login from "@/pages/Login";
-import HRLogin from "@/pages/HRLogin"; // 👈 1. IMPORT ADDED
 import Dashboard from "@/pages/Dashboard";
 import Revenue from "@/pages/Revenue";
 import Leaderboard from "@/pages/Leaderboard";
@@ -25,6 +24,7 @@ import Tickets from "@/pages/Tickets";
 import Profile from "@/pages/Profile";
 import NotFound from "@/pages/NotFound";
 import AddEmployee from './pages/AddEmployee';
+import AdminDashboard from "@/pages/AdminDashboard";
 
 const queryClient = new QueryClient();
 
@@ -32,9 +32,13 @@ const queryClient = new QueryClient();
 const AppRoutes = () => (
   <Layout>
     <Routes>
-      <Route path="/add-employee" element={<AddEmployee />} />
-      <Route path="/" element={<Dashboard />} />
+      <Route path="/dashboard" element={<Dashboard />} /> 
       <Route path="/revenue" element={<Revenue />} />
+      
+      {/* The Admin Route */}
+      <Route path="/admin" element={<AdminDashboard />} />
+      
+      <Route path="/add-employee" element={<AddEmployee />} />
       <Route path="/leaderboard" element={<Leaderboard />} />
       <Route path="/teams" element={<Teams />} />
       <Route path="/leaves" element={<Leaves />} />
@@ -50,28 +54,34 @@ const AppRoutes = () => (
       <Route path="/resources" element={<Resources />} />
       <Route path="/tickets" element={<Tickets />} />
       <Route path="/profile" element={<Profile />} />
+      
+      {/* Catch-all route must be at the bottom */}
       <Route path="*" element={<NotFound />} />
     </Routes>
   </Layout>
 );
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          {/* 👇 2. ROUTE ADDED HERE (Outside Layout) */}
-          <Route path="/hr-login" element={<HRLogin />} />
-          <Route path="/login" element={<Login />} />
-          
-          {/* Main App Routes */}
-          <Route path="/*" element={<AppRoutes />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <Toaster />
+        <Sonner />
+        <BrowserRouter>
+          <Routes>
+            {/* 1. STRICT LOGIN ROUTE: The login page only ever loads if the URL is exactly /hr-login */}
+            <Route path="/hr-login" element={<Login />} />
+            
+            {/* 2. ROOT REDIRECT: If anyone goes to localhost:8080/, instantly send them to the dashboard path */}
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            
+            {/* 3. APP ROUTES: Everything else goes through the Sidebar Layout */}
+            <Route path="/*" element={<AppRoutes />} />
+          </Routes>
+        </BrowserRouter>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;

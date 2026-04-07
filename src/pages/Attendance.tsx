@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { CheckCircle, Clock, XCircle, Percent, Loader2, LogIn } from "lucide-react";
+import { CheckCircle, Clock, XCircle, Percent, Loader2, LogIn, LogOut, CheckCircle2 } from "lucide-react";
 import StatCard from "@/components/StatCard";
 import { supabase } from "@/lib/supabaseClient";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 const statusColors: Record<string, string> = {
   present: "bg-success/20 text-success",
@@ -23,11 +24,17 @@ export default function Attendance() {
   const [actionLoading, setActionLoading] = useState(false);
   const [attendanceRecords, setAttendanceRecords] = useState<any[]>([]);
   const [summary, setSummary] = useState({ present: 0, halfDay: 0, absent: 0, rate: 0 });
+  const [todayRecord, setTodayRecord] = useState<any>(null);
 
-  // Keeping February 2026 so it perfectly matches your SQL test data
+  // --- DYNAMIC CALENDAR LOGIC ---
+  const now = new Date();
+  const currentMonth = now.getMonth(); // 0-indexed
+  const currentYear = now.getFullYear();
+  const monthName = now.toLocaleString('default', { month: 'long' });
+
+  const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const firstDayOfMonth = new Date(currentYear, currentMonth, 1).getDay();
   const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const daysInMonth = 28;
-  const firstDayOfMonth = new Date(2026, 1, 1).getDay();
 
   useEffect(() => {
     fetchAttendance();
@@ -37,36 +44,27 @@ export default function Attendance() {
     try {
       setLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      
-      if (!user) {
-        console.log("No user is currently logged in!");
-        return;
-      }
+      if (!user) return;
+
+      const todayStr = new Date().toISOString().split('T')[0];
 
       const { data, error } = await supabase
         .from('attendance')
         .select('*')
         .eq('user_id', user.id);
 
-      // --- THE TRUTH SERUM ---
-      // Right-click your website -> Inspect -> Console to see these!
-      console.log("1. Logged in User ID:", user.id);
-      console.log("2. Supabase Error:", error);
-      console.log("3. Supabase Data:", data);
-      // ------------------------
-
       if (error) throw error;
 
       if (data) {
         setAttendanceRecords(data);
-        
-        // Calculate Stats Dynamically
+        const todayData = data.find(r => r.date === todayStr);
+        setTodayRecord(todayData);
+
         const p = data.filter(r => r.status === 'present').length;
         const hd = data.filter(r => r.status === 'halfday').length;
         const a = data.filter(r => r.status === 'absent').length;
         const total = p + hd + a;
         const rate = total > 0 ? Math.round((p / total) * 100) : 0;
-
         setSummary({ present: p, halfDay: hd, absent: a, rate });
       }
     } catch (error) {
@@ -76,28 +74,33 @@ export default function Attendance() {
     }
   }
 
-  // NEW FEATURE: Real Check-in Button Logic
-  async function handleCheckIn() {
+  async function handleAttendanceAction() {
     try {
       setActionLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return alert("Please log in first");
+      if (!user) return toast.error("Please log in first");
 
-      const today = new Date().toISOString().split('T')[0]; // Gets YYYY-MM-DD
-      
-      const { error } = await supabase
-        .from('attendance')
-        .insert([
-          { user_id: user.id, status: 'present', date: today }
-        ]);
+      const todayStr = new Date().toISOString().split('T')[0];
+      const nowIso = new Date().toISOString();
 
-      if (error) throw error;
-      
-      alert("Success! You are clocked in for today.");
-      fetchAttendance(); // Refresh the data to update the UI
+      if (!todayRecord) {
+        const { error } = await supabase
+          .from('attendance')
+          .insert([{ user_id: user.id, status: 'present', date: todayStr, clock_in_time: nowIso }]);
+        if (error) throw error;
+        toast.success("Clocked in successfully!");
+      } else {
+        const { error } = await supabase
+          .from('attendance')
+          .update({ clock_out_time: nowIso })
+          .eq('id', todayRecord.id);
+        if (error) throw error;
+        toast.success("Clocked out successfully!");
+      }
+
+      fetchAttendance();
     } catch (error: any) {
-      console.error("Error checking in:", error);
-      alert("Failed to check in: " + error.message);
+      toast.error(error.message);
     } finally {
       setActionLoading(false);
     }
@@ -108,7 +111,7 @@ export default function Attendance() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500">
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <StatCard title="Present" value={summary.present} icon={<CheckCircle className="h-5 w-5" />} variant="success" />
         <StatCard title="Half Day" value={summary.halfDay} icon={<Clock className="h-5 w-5" />} variant="warning" />
@@ -116,67 +119,72 @@ export default function Attendance() {
         <StatCard title="Rate" value={`${summary.rate}%`} icon={<Percent className="h-5 w-5" />} variant="primary" />
       </div>
 
-      {/* Calendar */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <h3 className="mb-4 text-lg font-semibold text-card-foreground">February 2026</h3>
+      {/* Dynamic Calendar */}
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <h3 className="mb-4 text-lg font-bold text-card-foreground">{monthName} {currentYear}</h3>
         <div className="grid grid-cols-7 gap-1">
           {dayNames.map((d) => (
-            <div key={d} className="py-2 text-center text-xs font-medium text-muted-foreground">{d}</div>
+            <div key={d} className="py-2 text-center text-xs font-bold text-muted-foreground/60">{d}</div>
           ))}
           {Array.from({ length: firstDayOfMonth }).map((_, i) => (
             <div key={`empty-${i}`} />
           ))}
           {Array.from({ length: daysInMonth }).map((_, i) => {
             const day = i + 1;
-            
-            // Format day to match database string (e.g., "01", "09", "10")
             const paddedDay = day.toString().padStart(2, '0');
-            const targetDateString = `2026-02-${paddedDay}`;
+            const paddedMonth = (currentMonth + 1).toString().padStart(2, '0');
+            const targetDateString = `${currentYear}-${paddedMonth}-${paddedDay}`;
             
-            // Find if there is a record for this specific day
-            const record = attendanceRecords.find(r => r.date.startsWith(targetDateString));
+            const record = attendanceRecords.find(r => r.date === targetDateString);
             const status = record?.status;
+            const isToday = new Date().toISOString().split('T')[0] === targetDateString;
 
             return (
               <div
                 key={day}
                 className={cn(
-                  "flex flex-col items-center justify-center rounded-lg p-2 text-xs transition-colors h-14",
-                  status ? statusColors[status] : "bg-muted/5 text-muted-foreground border border-dashed border-border"
+                  "flex flex-col items-center justify-center rounded-lg p-2 text-xs transition-all h-14 border",
+                  status ? statusColors[status] : "bg-muted/5 text-muted-foreground/40 border-dashed border-border",
+                  isToday && !status && "border-primary/50 bg-primary/5 ring-1 ring-primary/20"
                 )}
               >
-                <span className="font-medium">{day}</span>
-                {status && <span className="text-[10px] mt-0.5 font-bold">{statusLabels[status]}</span>}
+                <span className={cn("font-bold", isToday && "text-primary")}>{day}</span>
+                {status && <span className="text-[10px] mt-1 font-black opacity-80">{statusLabels[status]}</span>}
               </div>
             );
           })}
         </div>
-
-        {/* Legend */}
-        <div className="mt-4 flex flex-wrap gap-4 text-xs">
-          {Object.entries(statusLabels).map(([key, label]) => (
-            <div key={key} className="flex items-center gap-1.5">
-              <div className={cn("h-3 w-3 rounded", statusColors[key])} />
-              <span className="text-muted-foreground capitalize">{key} ({label})</span>
-            </div>
-          ))}
-        </div>
       </div>
 
-      {/* Today's Action - NOW INTERACTIVE */}
-      <div className="rounded-2xl border border-border bg-card p-6 flex items-center justify-between">
+      {/* Action Card */}
+      <div className="rounded-2xl border border-border bg-card p-6 flex items-center justify-between border-l-4 border-l-primary shadow-md">
         <div>
-          <h3 className="mb-1 text-lg font-semibold text-card-foreground">Today's Action</h3>
-          <p className="text-sm text-muted-foreground">Mark your attendance for today.</p>
+          <h3 className="mb-1 text-lg font-bold text-card-foreground">Daily Check-in</h3>
+          <p className="text-sm text-muted-foreground">
+            {!todayRecord ? "Shift hasn't started yet." : 
+             !todayRecord.clock_out_time ? "Shift is currently active." : 
+             "You have finished for today!"}
+          </p>
         </div>
-        <button 
-          onClick={handleCheckIn}
-          disabled={actionLoading}
-          className="flex items-center gap-2 bg-primary text-primary-foreground px-6 py-3 rounded-xl font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
-        >
-          {actionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : <LogIn className="h-5 w-5" />}
-          Clock In Now
-        </button>
+
+        {todayRecord?.clock_out_time ? (
+          <div className="flex items-center gap-2 text-success bg-success/10 px-8 py-3 rounded-xl font-black">
+            <CheckCircle2 className="h-5 w-5" /> COMPLETED
+          </div>
+        ) : (
+          <button 
+            onClick={handleAttendanceAction}
+            disabled={actionLoading}
+            className={cn(
+              "flex items-center gap-3 text-white px-8 py-3 rounded-xl font-black transition-all transform active:scale-95 disabled:opacity-50 shadow-lg",
+              !todayRecord ? "bg-primary shadow-primary/20" : "bg-destructive shadow-destructive/20"
+            )}
+          >
+            {actionLoading ? <Loader2 className="h-5 w-5 animate-spin" /> : 
+             !todayRecord ? <LogIn className="h-5 w-5" /> : <LogOut className="h-5 w-5" />}
+            {!todayRecord ? "CLOCK IN" : "CLOCK OUT"}
+          </button>
+        )}
       </div>
     </div>
   );

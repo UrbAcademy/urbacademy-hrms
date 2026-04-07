@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X } from "lucide-react";
-import { supabase } from "@/lib/supabaseClient"; // 👈 Import Supabase client
+import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X, DollarSign } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
+import { toast } from "sonner"; // Ensure sonner is installed for notifications
 
 const SalesLeads = () => {
   const [leads, setLeads] = useState<any[]>([]);
@@ -19,7 +20,56 @@ const SalesLeads = () => {
     notes: ""
   });
 
-  // 👇 1. Fetch leads when the page loads
+  // 👇 NEW: Handle Status Change & Conversion
+  const handleStatusUpdate = async (leadId: string, leadName: string, currentStatus: string) => {
+    const statuses = ["New", "Interested", "Follow Up", "Converted", "Rejected"];
+    const nextStatus = window.prompt(
+      `Update status for ${leadName}?\nOptions: ${statuses.join(", ")}`, 
+      currentStatus
+    );
+
+    if (!nextStatus || !statuses.includes(nextStatus) || nextStatus === currentStatus) return;
+
+    try {
+      // 1. Update Lead Status
+      const { error: updateError } = await supabase
+        .from('leads')
+        .update({ status: nextStatus })
+        .eq('id', leadId);
+
+      if (updateError) throw updateError;
+
+      // 2. Logic for "Converted" -> Add to Sales table
+      if (nextStatus === "Converted") {
+        const amount = window.prompt(`Conversion! Enter the course fee for ${leadName}:`, "5000");
+        
+        if (amount) {
+          const userStr = localStorage.getItem("currentUser");
+          const user = userStr ? JSON.parse(userStr) : null;
+
+          const { error: salesError } = await supabase
+            .from('sales')
+            .insert([{
+              employee_id: user?.id,
+              customer_name: leadName,
+              amount: parseFloat(amount),
+              status: 'completed'
+            }]);
+
+          if (salesError) throw salesError;
+          toast.success("Lead converted and Sales recorded! 💰");
+        }
+      } else {
+        toast.success(`Status updated to ${nextStatus}`);
+      }
+
+      fetchLeads(); // Refresh list
+    } catch (error) {
+      console.error("Update error:", error);
+      toast.error("Failed to update status");
+    }
+  };
+
   useEffect(() => {
     fetchLeads();
   }, []);
@@ -29,7 +79,7 @@ const SalesLeads = () => {
       const { data, error } = await supabase
         .from('leads')
         .select('*')
-        .order('date', { ascending: false }); // Newest first
+        .order('date', { ascending: false });
 
       if (error) throw error;
       if (data) setLeads(data);
@@ -40,7 +90,6 @@ const SalesLeads = () => {
     }
   };
 
-  // 👇 2. Handle adding a new lead to the database
   const handleAddLead = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -57,34 +106,30 @@ const SalesLeads = () => {
             notes: formData.notes
           }
         ])
-        .select(); // Returns the newly inserted row
+        .select();
 
       if (error) throw error;
 
       if (data) {
-        // Add the new lead to the top of our local state list instantly
         setLeads([data[0], ...leads]);
-        
-        // Reset form and close modal
         setShowModal(false);
         setFormData({ name: "", phone: "", course: "Data Science", status: "New", notes: "" });
+        toast.success("Lead added successfully!");
       }
     } catch (error) {
       console.error("Error adding lead:", error);
-      alert("Failed to add lead. Check console.");
+      toast.error("Failed to add lead.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Filter Logic
   const filteredLeads = leads.filter(lead => {
     const matchesSearch = lead.name.toLowerCase().includes(searchTerm.toLowerCase()) || lead.phone.includes(searchTerm);
     const matchesStatus = filterStatus === "All" || lead.status === filterStatus;
     return matchesSearch && matchesStatus;
   });
 
-  // Action Handlers
   const handleCall = (phone: string) => window.location.href = `tel:${phone}`;
   
   const handleWhatsApp = (phone: string, name: string) => {
@@ -120,7 +165,7 @@ const SalesLeads = () => {
         </button>
       </div>
 
-      {/* Search & Filters Toolbar */}
+      {/* Toolbar */}
       <div className="bg-[#181b21] border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-4 justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
@@ -150,7 +195,7 @@ const SalesLeads = () => {
         </div>
       </div>
 
-      {/* The Leads Table (CRM) */}
+      {/* Table */}
       <div className="bg-[#181b21] border border-white/5 rounded-2xl overflow-hidden shadow-xl min-h-[400px]">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[400px] space-y-4">
@@ -199,7 +244,11 @@ const SalesLeads = () => {
                         <button onClick={() => handleWhatsApp(lead.phone, lead.name)} className="p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all">
                           <MessageCircle className="h-4 w-4" />
                         </button>
-                        <button className="p-2 rounded-lg hover:bg-white/10 text-gray-400 hover:text-white transition-all">
+                        {/* 👇 UPDATED: More Actions triggers Status Update */}
+                        <button 
+                          onClick={() => handleStatusUpdate(lead.id, lead.name, lead.status)}
+                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
+                        >
                           <MoreHorizontal className="h-4 w-4" />
                         </button>
                       </div>
@@ -208,54 +257,37 @@ const SalesLeads = () => {
                 ))}
               </tbody>
             </table>
-
-            {filteredLeads.length === 0 && (
-              <div className="p-12 text-center">
-                <div className="inline-flex p-4 rounded-full bg-gray-800 mb-4 text-gray-500">
-                  <Search className="h-6 w-6" />
-                </div>
-                <p className="text-gray-400">No leads found matching your filters.</p>
-              </div>
-            )}
           </div>
         )}
       </div>
 
-      {/* 👇 NEW: Add Lead Modal */}
+      {/* Add Lead Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-[#181b21] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl relative">
-            <button 
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"
-            >
+            <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
               <X className="h-5 w-5" />
             </button>
-            
             <div className="p-6 border-b border-white/5">
               <h3 className="text-xl font-bold text-white">Add New Lead</h3>
-              <p className="text-sm text-gray-400 mt-1">Enter the student's enquiry details below.</p>
             </div>
-
             <form onSubmit={handleAddLead} className="p-6 space-y-4">
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-400 uppercase">Student Name</label>
                 <input 
                   type="text" required placeholder="Ex: Karan Sharma"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
                   value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}
                 />
               </div>
-
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-400 uppercase">Phone Number</label>
                 <input 
                   type="tel" required placeholder="10-digit mobile number"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none transition-colors"
+                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
                   value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})}
                 />
               </div>
-
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-400 uppercase">Course</label>
@@ -269,7 +301,6 @@ const SalesLeads = () => {
                     <option value="Cybersecurity">Cybersecurity</option>
                   </select>
                 </div>
-                
                 <div className="space-y-1.5">
                   <label className="text-xs font-semibold text-gray-400 uppercase">Status</label>
                   <select 
@@ -282,26 +313,22 @@ const SalesLeads = () => {
                   </select>
                 </div>
               </div>
-
               <div className="space-y-1.5">
                 <label className="text-xs font-semibold text-gray-400 uppercase">Initial Notes</label>
                 <textarea 
-                  rows={2} placeholder="Any specific requirements or questions?"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none transition-colors"
+                  rows={2} placeholder="Any specific requirements?"
+                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
                   value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})}
                 />
               </div>
-
-              <div className="pt-2">
-                <button 
-                  type="submit" disabled={isSubmitting}
-                  className={`w-full font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 ${
-                    isSubmitting ? "bg-blue-600/50 text-white/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/20"
-                  }`}
-                >
-                  {isSubmitting ? <><Loader2 className="h-5 w-5 animate-spin" /> Saving...</> : "Save Lead"}
-                </button>
-              </div>
+              <button 
+                type="submit" disabled={isSubmitting}
+                className={`w-full font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 ${
+                  isSubmitting ? "bg-blue-600/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
+                }`}
+              >
+                {isSubmitting ? "Saving..." : "Save Lead"}
+              </button>
             </form>
           </div>
         </div>

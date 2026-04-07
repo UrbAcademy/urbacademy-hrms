@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, User, Mail, Phone, BadgeCheck } from "lucide-react";
 import StatCard from "@/components/StatCard";
-// Removed currentUser from here
 import { motivationalQuotes, topPerformers, formatCurrency } from "@/lib/mock-data";
 import ClockInWidget from "@/components/ClockInWidget";
 
@@ -14,28 +13,46 @@ export default function Dashboard() {
   const quote = motivationalQuotes[today.getDate() % motivationalQuotes.length];
   const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
 
-  // Fetch the logged-in user when the dashboard loads
+  // ✅ STRICT SESSION CHECK: Redirects safely to /hr-login if missing or corrupted
   useEffect(() => {
-    const storedUser = localStorage.getItem("currentUser");
-    if (storedUser) {
-      setUser(JSON.parse(storedUser));
-    } else {
-      // Not logged in? Go back to login page
-      navigate("/hr-login");
-    }
+    const checkSession = () => {
+      const storedUser = localStorage.getItem("currentUser");
+      
+      if (storedUser) {
+        try {
+          const parsedData = JSON.parse(storedUser);
+          setUser(parsedData);
+        } catch (e) {
+          // If the data is corrupted (e.g., "[object Object]"), wipe it and send to login
+          localStorage.removeItem("currentUser");
+          navigate("/hr-login", { replace: true });
+        }
+      } else {
+        // If no user is logged in, send to login
+        navigate("/hr-login", { replace: true });
+      }
+    };
+
+    checkSession();
   }, [navigate]);
 
-  // Don't render anything until we have the user data (prevents flickering)
+  // Don't render anything until we have the user data (prevents UI flickering)
   if (!user) return null;
+
+  // Safely extract the display name
+  const displayName = user?.full_name || user?.name || "User";
+  const userInitials = displayName !== "User" 
+    ? displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
+    : "UA";
 
   return (
     <div className="space-y-6">
       {/* Welcome */}
-      <div className="rounded-2xl border border-border bg-card p-6">
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
           <div>
             <h2 className="text-2xl font-bold text-card-foreground">
-              Welcome back, <span className="gradient-text">{user.name}</span>! 👋
+              Welcome back, <span className="gradient-text">{displayName}</span>! 👋
             </h2>
             <p className="mt-1 text-sm text-muted-foreground italic">"{quote}"</p>
           </div>
@@ -62,7 +79,7 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
         {/* LEFT COLUMN: Top Performers (Takes 2/3 width) */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6">
+        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h3 className="mb-6 text-lg font-semibold text-card-foreground flex items-center gap-2">
             <Trophy className="h-5 w-5 text-warning" /> Top Performers
           </h3>
@@ -74,7 +91,7 @@ export default function Dashboard() {
               const emojis = ["🥈", "🥇", "🥉"];
               return (
                 <div key={p.rank} className="flex flex-col items-center">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground">
+                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground shadow-sm">
                     {p.name.split(" ").map(n => n[0]).join("")}
                   </div>
                   <p className="text-xs font-medium text-card-foreground mb-1">{p.name}</p>
@@ -117,33 +134,33 @@ export default function Dashboard() {
         {/* RIGHT COLUMN: Clock Widget + Profile (Takes 1/3 width) */}
         <div className="space-y-6"> 
           
-          {/* 1. CLOCK WIDGET ADDED HERE */}
+          {/* 1. CLOCK WIDGET */}
           <ClockInWidget /> 
 
           {/* 2. Profile Card */}
-          <div className="rounded-2xl border border-border bg-card p-6">
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h3 className="mb-4 text-lg font-semibold text-card-foreground flex items-center gap-2">
               <User className="h-5 w-5 text-primary" /> My Profile
             </h3>
             <div className="flex flex-col items-center mb-6">
-              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold uppercase">
-                {user.name.split(" ").map((n: string) => n[0]).join("").substring(0, 2)}
+              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold tracking-wider shadow-md">
+                {userInitials}
               </div>
-              <p className="text-lg font-semibold text-card-foreground">{user.name}</p>
-              <span className="mt-1 rounded-full bg-primary/10 px-3 py-0.5 text-xs font-medium text-primary">{user.role}</span>
+              <p className="text-lg font-semibold text-card-foreground">{displayName}</p>
+              <span className="mt-1 rounded-full bg-primary/10 border border-primary/20 px-3 py-0.5 text-xs font-bold text-primary uppercase tracking-wider">
+                {user?.role || "Employee"}
+              </span>
             </div>
             
             <div className="space-y-3 text-sm">
               {[
-                { icon: BadgeCheck, label: "Employee ID", value: user.employee_id },
-                { icon: BadgeCheck, label: "Department", value: user.department },
-                // Since email, phone, and joinDate might not be in your new Supabase table yet, 
-                // we can safely fallback to N/A or default values so the app doesn't crash.
-                { icon: Mail, label: "Email", value: user.email || "Not Provided" },
-                { icon: Phone, label: "Phone", value: user.phone || "Not Provided" },
-                { icon: Calendar, label: "Joined", value: user.created_at ? new Date(user.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Recently" },
+                { icon: BadgeCheck, label: "Employee ID", value: user?.employee_id || "N/A" },
+                { icon: BadgeCheck, label: "Department", value: user?.department || "N/A" },
+                { icon: Mail, label: "Email", value: user?.email || "Not Provided" },
+                { icon: Phone, label: "Phone", value: user?.phone || "Not Provided" },
+                { icon: Calendar, label: "Joined", value: user?.created_at ? new Date(user.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Recently" },
               ].map((item) => (
-                <div key={item.label} className="flex items-start gap-3 rounded-lg bg-accent/30 p-2.5">
+                <div key={item.label} className="flex items-start gap-3 rounded-lg bg-accent/30 p-2.5 hover:bg-accent/50 transition-colors">
                   <item.icon className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
                   <div>
                     <p className="text-xs text-muted-foreground">{item.label}</p>

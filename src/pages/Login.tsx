@@ -1,28 +1,84 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { supabase } from "@/lib/supabaseClient";
 
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    navigate("/");
+    setLoading(true);
+    setError("");
+
+    // 1. Authenticate with Supabase
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError) {
+      setError(authError.message);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Fetch the user's role from the profiles table
+    if (authData.user) {
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*") 
+        .eq("id", authData.user.id)
+        .single();
+
+      const role = profileData?.role || "bda";
+
+      // 3. Save the session to LocalStorage safely
+      const userSession = {
+        ...authData.user,
+        ...profileData,
+        role: role, 
+      };
+      
+      localStorage.setItem("currentUser", JSON.stringify(userSession));
+
+      // 4. Route based on role
+      if (role === "admin") {
+        navigate("/admin"); 
+      } else {
+        navigate("/revenue"); 
+      }
+    }
+    
+    setLoading(false);
+  };
+
+  const handleGoogleLogin = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({ provider: 'google' });
+    if (error) setError(error.message);
   };
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-md space-y-8 animate-scale-in">
         <div className="text-center">
-          <h1 className="text-3xl font-bold gradient-text">Eduveda Academy</h1>
+          <h1 className="text-3xl font-bold gradient-text">UrbAcademy</h1>
           <p className="mt-2 text-muted-foreground">Sign in to your account</p>
         </div>
 
         <div className="rounded-2xl border border-border bg-card p-8 shadow-xl">
           <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center font-medium">
+                {error}
+              </div>
+            )}
+
             <div>
               <label className="mb-1.5 block text-sm font-medium text-card-foreground">Email</label>
               <div className="relative">
@@ -31,7 +87,8 @@ export default function Login() {
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@eduveda.com"
+                  placeholder="you@UrbAcademy.com"
+                  required
                   className="w-full rounded-lg border border-input bg-background pl-10 pr-4 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
               </div>
@@ -46,6 +103,7 @@ export default function Login() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
+                  required
                   className="w-full rounded-lg border border-input bg-background pl-10 pr-10 py-2.5 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 />
                 <button type="button" onClick={() => setShowPw(!showPw)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -54,8 +112,12 @@ export default function Login() {
               </div>
             </div>
 
-            <button type="submit" className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors">
-              Sign In
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full rounded-lg bg-primary py-2.5 text-sm font-semibold text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {loading ? "Signing in..." : "Sign In"}
             </button>
           </form>
 
@@ -70,7 +132,8 @@ export default function Login() {
             </div>
 
             <button
-              onClick={() => navigate("/")}
+              onClick={handleGoogleLogin}
+              type="button"
               className="mt-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-background py-2.5 text-sm font-medium text-foreground hover:bg-accent transition-colors"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">
