@@ -1,34 +1,48 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, User, Mail, Phone, BadgeCheck } from "lucide-react";
+import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, User, Mail, Phone, BadgeCheck, Edit } from "lucide-react"; // ✅ Added Edit icon
 import StatCard from "@/components/StatCard";
 import { motivationalQuotes, topPerformers, formatCurrency } from "@/lib/mock-data";
 import ClockInWidget from "@/components/ClockInWidget";
+import { supabase } from "@/lib/supabaseClient"; // ✅ Added Supabase import
 
 export default function Dashboard() {
   const navigate = useNavigate();
-  const [user, setUser] = useState<any>(null); // State for the logged-in user
+  const [user, setUser] = useState<any>(null); 
 
   const today = new Date();
   const quote = motivationalQuotes[today.getDate() % motivationalQuotes.length];
   const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
 
-  // ✅ STRICT SESSION CHECK: Redirects safely to /hr-login if missing or corrupted
   useEffect(() => {
-    const checkSession = () => {
+    // ✅ Made this async to fetch fresh profile data
+    const checkSession = async () => {
       const storedUser = localStorage.getItem("currentUser");
       
       if (storedUser) {
         try {
           const parsedData = JSON.parse(storedUser);
-          setUser(parsedData);
+          setUser(parsedData); // Set immediately for fast UI loading
+          
+          // ✅ Fetch latest data from Supabase to keep dashboard fresh
+          const { data, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', parsedData.id)
+            .single();
+
+          if (data) {
+            const updatedUser = { ...parsedData, ...data };
+            setUser(updatedUser);
+            // Silently update local storage so it stays in sync
+            localStorage.setItem("currentUser", JSON.stringify(updatedUser));
+          }
+
         } catch (e) {
-          // If the data is corrupted (e.g., "[object Object]"), wipe it and send to login
           localStorage.removeItem("currentUser");
           navigate("/hr-login", { replace: true });
         }
       } else {
-        // If no user is logged in, send to login
         navigate("/hr-login", { replace: true });
       }
     };
@@ -36,10 +50,8 @@ export default function Dashboard() {
     checkSession();
   }, [navigate]);
 
-  // Don't render anything until we have the user data (prevents UI flickering)
   if (!user) return null;
 
-  // Safely extract the display name
   const displayName = user?.full_name || user?.name || "User";
   const userInitials = displayName !== "User" 
     ? displayName.split(" ").map((n: string) => n[0]).join("").substring(0, 2).toUpperCase()
@@ -78,12 +90,11 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LEFT COLUMN: Top Performers (Takes 2/3 width) */}
+        {/* LEFT COLUMN */}
         <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm">
           <h3 className="mb-6 text-lg font-semibold text-card-foreground flex items-center gap-2">
             <Trophy className="h-5 w-5 text-warning" /> Top Performers
           </h3>
-          {/* Podium */}
           <div className="flex items-end justify-center gap-4 mb-8">
             {[topPerformers[1], topPerformers[0], topPerformers[2]].map((p, i) => {
               const heights = ["h-24", "h-32", "h-20"];
@@ -104,7 +115,6 @@ export default function Dashboard() {
             })}
           </div>
 
-          {/* Rankings table */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -131,17 +141,25 @@ export default function Dashboard() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: Clock Widget + Profile (Takes 1/3 width) */}
+        {/* RIGHT COLUMN */}
         <div className="space-y-6"> 
           
-          {/* 1. CLOCK WIDGET */}
           <ClockInWidget /> 
 
-          {/* 2. Profile Card */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 text-lg font-semibold text-card-foreground flex items-center gap-2">
-              <User className="h-5 w-5 text-primary" /> My Profile
-            </h3>
+            {/* ✅ Added navigation wrapper to Header */}
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
+                <User className="h-5 w-5 text-primary" /> My Profile
+              </h3>
+              <button 
+                onClick={() => navigate('/my-profile')}
+                className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 text-xs"
+              >
+                <Edit className="h-3 w-3" /> Edit
+              </button>
+            </div>
+            
             <div className="flex flex-col items-center mb-6">
               <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold tracking-wider shadow-md">
                 {userInitials}

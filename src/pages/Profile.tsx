@@ -1,209 +1,248 @@
 import { useState, useEffect } from "react";
+import { User, Briefcase, CreditCard, FileText, Upload, Save, Loader2, CheckCircle2 } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { User, Lock, Save, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
-export default function Profile() {
+export default function MyProfile() {
+  const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(true);
-  const [savingProfile, setSavingProfile] = useState(false);
-  const [savingPassword, setSavingPassword] = useState(false);
-
-  // User Data State
-  const [email, setEmail] = useState("");
-  const [fullName, setFullName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [saving, setSaving] = useState(false);
   
-  // Password State
-  const [newPassword, setNewPassword] = useState("");
+  const [profileData, setProfileData] = useState({
+    id: "",
+    full_name: "",
+    email: "",
+    phone: "",
+    dob: "",
+    address: "",
+    department: "",
+    designation: "",
+    joining_date: "",
+    bank_name: "",
+    account_number: "",
+    ifsc_code: "",
+  });
 
   useEffect(() => {
-    fetchUserData();
+    fetchProfile();
   }, []);
 
-  async function fetchUserData() {
+  async function fetchProfile() {
     try {
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
       if (error) throw error;
-      
-      if (user) {
-        setEmail(user.email || "");
-        // Supabase stores extra user info in the user_metadata object
-        setFullName(user.user_metadata?.full_name || "");
-        setPhone(user.user_metadata?.phone || "");
+      if (data) {
+        setProfileData({ ...data, email: user.email }); // Email usually comes from auth
       }
     } catch (error) {
-      console.error("Error loading user:", error);
+      console.error("Error fetching profile:", error);
     } finally {
       setLoading(false);
     }
   }
 
-  // --- BULLETPROOF SAVE PROFILE INFO ---
-  async function handleSaveProfile() {
+  const handleSave = async () => {
+    setSaving(true);
     try {
-      setSavingProfile(true);
-      
-      // 1. Force Supabase to grab the current session from the browser
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        console.error("Session fetch error:", sessionError);
-        return alert("Failed to get session. Please log out and log back in.");
-      }
-
-      if (!session) {
-        console.warn("Session is NULL!");
-        return alert("Your session has expired! You must log out and log back in.");
-      }
-
-      console.log("Valid session found for user:", session.user.id);
-
-      // 2. Now attempt the update
-      const { error: updateError } = await supabase.auth.updateUser({
-        data: { 
-          full_name: fullName, 
-          phone: phone 
-        }
-      });
-
-      if (updateError) {
-        console.error("Update failed:", updateError);
-        throw updateError;
-      }
-      
-      alert("Profile updated successfully!");
-    } catch (error: any) {
-      console.error("Error updating profile:", error);
-      alert("Error updating profile: " + error.message);
-    } finally {
-      setSavingProfile(false);
-    }
-  }
-
-  // --- SAVE NEW PASSWORD ---
-  async function handleChangePassword() {
-    if (newPassword.length < 6) {
-      return alert("Password must be at least 6 characters long.");
-    }
-
-    try {
-      setSavingPassword(true);
-      
-      // Always good to check session here too just in case!
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return alert("Session expired. Please log in again.");
-
-      const { error } = await supabase.auth.updateUser({
-        password: newPassword
-      });
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: profileData.full_name,
+          phone: profileData.phone,
+          dob: profileData.dob,
+          address: profileData.address,
+          bank_name: profileData.bank_name,
+          account_number: profileData.account_number,
+          ifsc_code: profileData.ifsc_code,
+        })
+        .eq('id', profileData.id);
 
       if (error) throw error;
-      
-      alert("Password changed successfully!");
-      setNewPassword(""); // Clear the input field
+      toast.success("Profile updated successfully!");
     } catch (error: any) {
-      alert("Error changing password: " + error.message);
+      toast.error(error.message);
     } finally {
-      setSavingPassword(false);
+      setSaving(false);
     }
-  }
+  };
 
-  if (loading) {
-    return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-primary h-8 w-8" /></div>;
-  }
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, docType: string) => {
+    // Note: You will need to set up Supabase Storage buckets for this to actually save files.
+    // For now, this is the UI logic.
+    const file = e.target.files?.[0];
+    if (!file) return;
+    toast.success(`${docType} selected for upload: ${file.name}`);
+  };
+
+  if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-blue-500 h-8 w-8" /></div>;
+
+  const tabs = [
+    { id: "personal", label: "Personal Info", icon: User },
+    { id: "professional", label: "Professional", icon: Briefcase },
+    { id: "bank", label: "Bank Details", icon: CreditCard },
+    { id: "documents", label: "Documents", icon: FileText },
+  ];
 
   return (
-    <div className="max-w-3xl mx-auto space-y-6">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       
-      {/* Header Card */}
-      <div className="rounded-2xl border border-border bg-card p-8 flex flex-col items-center justify-center text-center">
-        <div className="h-24 w-24 rounded-full bg-primary/20 text-primary flex items-center justify-center text-3xl font-bold mb-4">
-          {fullName ? fullName.charAt(0).toUpperCase() : <User size={40} />}
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h2 className="text-3xl font-bold text-white tracking-tight">My Profile</h2>
+          <p className="text-gray-400 mt-1">Manage your personal and professional information.</p>
         </div>
-        <h2 className="text-2xl font-bold text-card-foreground">{fullName || "Add your name below"}</h2>
-        <p className="text-muted-foreground">{email}</p>
+        <button 
+          onClick={handleSave}
+          disabled={saving}
+          className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2.5 rounded-xl font-bold flex items-center gap-2 shadow-lg transition-all"
+        >
+          {saving ? <Loader2 className="h-5 w-5 animate-spin" /> : <Save className="h-5 w-5" />}
+          {saving ? "Saving..." : "Save Changes"}
+        </button>
       </div>
 
-      {/* Personal Information Form */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <User className="text-primary" />
-          <h3 className="text-lg font-semibold text-card-foreground">Personal Information</h3>
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+        
+        {/* Left Sidebar - Tabs */}
+        <div className="lg:col-span-1 space-y-2">
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 px-4 py-3 rounded-xl font-semibold transition-all",
+                  activeTab === tab.id 
+                    ? "bg-blue-600 text-white shadow-lg shadow-blue-900/20" 
+                    : "bg-[#181b21] text-gray-400 hover:bg-white/5 hover:text-white border border-white/5"
+                )}
+              >
+                <Icon size={18} /> {tab.label}
+              </button>
+            );
+          })}
         </div>
 
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Full Name</label>
-            <input 
-              type="text" 
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
-              placeholder="e.g. Rahul Sharma"
-            />
-          </div>
+        {/* Right Content Area */}
+        <div className="lg:col-span-3 bg-[#181b21] border border-white/5 rounded-3xl p-6 shadow-xl min-h-[400px]">
+          
+          {/* TAB 1: PERSONAL INFO */}
+          {activeTab === "personal" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <h3 className="text-xl font-bold text-white border-b border-white/5 pb-4">Personal Information</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Full Name</label>
+                  <input type="text" value={profileData.full_name || ""} onChange={(e) => setProfileData({...profileData, full_name: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Email (Read Only)</label>
+                  <input type="email" value={profileData.email || ""} disabled className="w-full bg-black/40 border border-white/5 text-gray-500 cursor-not-allowed rounded-xl p-3" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Phone Number</label>
+                  <input type="tel" value={profileData.phone || ""} onChange={(e) => setProfileData({...profileData, phone: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Date of Birth</label>
+                  <input type="date" value={profileData.dob || ""} onChange={(e) => setProfileData({...profileData, dob: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none [color-scheme:dark]" />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Current Address</label>
+                  <textarea rows={3} value={profileData.address || ""} onChange={(e) => setProfileData({...profileData, address: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+              </div>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Phone</label>
-            <input 
-              type="text" 
-              value={phone}
-              onChange={(e) => setPhone(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
-              placeholder="+91 98765 43210"
-            />
-          </div>
+          {/* TAB 2: PROFESSIONAL */}
+          {activeTab === "professional" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <h3 className="text-xl font-bold text-white border-b border-white/5 pb-4">Professional Details</h3>
+              <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-xl text-blue-400 text-sm mb-6 flex items-center gap-2">
+                <CheckCircle2 size={16} /> These details are managed by Urb Academy HR. Contact admin to change.
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Department</label>
+                  <input type="text" value={profileData.department || "Sales"} disabled className="w-full bg-black/40 border border-white/5 text-gray-500 cursor-not-allowed rounded-xl p-3" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Designation</label>
+                  <input type="text" value={profileData.designation || "Business Development Associate"} disabled className="w-full bg-black/40 border border-white/5 text-gray-500 cursor-not-allowed rounded-xl p-3" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Date of Joining</label>
+                  <input type="date" value={profileData.joining_date || "2024-01-15"} disabled className="w-full bg-black/40 border border-white/5 text-gray-500 cursor-not-allowed rounded-xl p-3 [color-scheme:dark]" />
+                </div>
+              </div>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">Email (Cannot be changed)</label>
-            <input 
-              type="email" 
-              value={email}
-              disabled
-              className="w-full rounded-lg border border-border bg-muted p-3 text-muted-foreground cursor-not-allowed"
-            />
-          </div>
+          {/* TAB 3: BANK DETAILS */}
+          {activeTab === "bank" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <h3 className="text-xl font-bold text-white border-b border-white/5 pb-4">Bank Information</h3>
+              <p className="text-sm text-gray-400">This account will be used for processing your monthly payroll.</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Bank Name</label>
+                  <input type="text" placeholder="e.g. HDFC Bank" value={profileData.bank_name || ""} onChange={(e) => setProfileData({...profileData, bank_name: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">Account Number</label>
+                  <input type="password" placeholder="••••••••••••" value={profileData.account_number || ""} onChange={(e) => setProfileData({...profileData, account_number: e.target.value})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-gray-400 uppercase">IFSC Code</label>
+                  <input type="text" placeholder="e.g. HDFC0001234" value={profileData.ifsc_code || ""} onChange={(e) => setProfileData({...profileData, ifsc_code: e.target.value.toUpperCase()})} className="w-full bg-black/20 border border-white/10 text-white rounded-xl p-3 focus:border-blue-500 outline-none" />
+                </div>
+              </div>
+            </div>
+          )}
 
-          <button 
-            onClick={handleSaveProfile}
-            disabled={savingProfile}
-            className="mt-4 flex items-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-lg font-medium hover:opacity-90 disabled:opacity-50 transition-opacity"
-          >
-            {savingProfile ? <Loader2 className="animate-spin h-4 w-4" /> : <Save className="h-4 w-4" />}
-            Save Changes
-          </button>
+          {/* TAB 4: DOCUMENTS */}
+          {activeTab === "documents" && (
+            <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
+              <h3 className="text-xl font-bold text-white border-b border-white/5 pb-4">My Documents</h3>
+              <p className="text-sm text-gray-400 mb-4">Upload your required KYC and professional documents here.</p>
+              
+              <div className="space-y-4">
+                {/* Document Item */}
+                {['Aadhar Card', 'PAN Card', 'Updated Resume'].map((docName) => (
+                  <div key={docName} className="flex items-center justify-between p-4 bg-black/20 border border-white/5 rounded-xl hover:border-white/10 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="h-10 w-10 bg-blue-500/10 text-blue-500 rounded-lg flex items-center justify-center">
+                        <FileText size={20} />
+                      </div>
+                      <div>
+                        <p className="text-white font-semibold">{docName}</p>
+                        <p className="text-xs text-gray-500">PDF or Image (Max 5MB)</p>
+                      </div>
+                    </div>
+                    <label className="cursor-pointer bg-white/5 hover:bg-white/10 text-white px-4 py-2 rounded-lg font-medium text-sm flex items-center gap-2 transition-colors">
+                      <Upload size={16} /> Upload
+                      <input type="file" className="hidden" accept=".pdf,image/*" onChange={(e) => handleFileUpload(e, docName)} />
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       </div>
-
-      {/* Security / Password Change */}
-      <div className="rounded-2xl border border-border bg-card p-6">
-        <div className="flex items-center gap-2 mb-6">
-          <Lock className="text-primary" />
-          <h3 className="text-lg font-semibold text-card-foreground">Security</h3>
-        </div>
-
-        <div className="space-y-4 max-w-md">
-          <div>
-            <label className="block text-sm font-medium text-muted-foreground mb-1">New Password</label>
-            <input 
-              type="password" 
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-lg border border-border bg-background p-3 text-foreground focus:border-primary focus:outline-none"
-              placeholder="Enter new password"
-            />
-          </div>
-
-          <button 
-            onClick={handleChangePassword}
-            disabled={savingPassword || !newPassword}
-            className="flex items-center gap-2 bg-transparent border border-border text-foreground px-4 py-2 rounded-lg font-medium hover:bg-muted disabled:opacity-50 transition-colors"
-          >
-            {savingPassword ? <Loader2 className="animate-spin h-4 w-4" /> : "Update Password"}
-          </button>
-        </div>
-      </div>
-
     </div>
   );
 }
