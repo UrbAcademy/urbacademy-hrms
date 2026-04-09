@@ -27,7 +27,7 @@ let DefaultIcon = L.icon({
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // --- CONFIGURATION ---
-const OFFICE_LOCATION: [number, number] = [28.6139, 77.2090]; 
+const OFFICE_LOCATION: [number, number] = [28.498482, 77.382503]; 
 const RADIUS_METERS = 100;
 
 const statusColors: Record<string, string> = {
