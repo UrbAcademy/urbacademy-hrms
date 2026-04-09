@@ -37,25 +37,26 @@ export default function RegisterEmployee() {
 
       if (authError) throw authError;
 
-      // 4. ✅ FIXED: Save to 'profiles' table (the table your Admin Dashboard counts)
+      // 4. ✅ BULLETPROOF FIX: Use 'update' instead of 'upsert'
+      // The Supabase trigger already created the blank row, so we just update it.
       const { error: dbError } = await supabase
-        .from('profiles') // Changed from 'employees' to 'profiles'
-        .insert([
-          { 
-            id: authData.user?.id, // Links to the Auth ID
-            email: email,
-            employee_id: newEmpId,
-            full_name: formData.fullName,
-            department: formData.department,
-            role: formData.role.toLowerCase().includes('admin') ? 'admin' : 'bda' // Maps to your system roles
-          }
-        ]);
+        .from('profiles')
+        .update({ 
+          email: email,
+          employee_id: newEmpId,
+          full_name: formData.fullName,
+          department: formData.department,
+          role: formData.role.toLowerCase().includes('admin') ? 'admin' : 'bda' // Maps to your system roles
+        })
+        .eq('id', authData.user?.id); // Matches the exact row created by the trigger
 
-      if (dbError) throw dbError;
+  if (dbError) throw dbError;
 
-      // 5. Success! 
-      toast.success("Employee Onboarded Successfully!");
-      alert(`Give this to the new hire:\n\nEmail/ID: ${email}\nTemp Password: ${tempPassword}`);
+      // 5. Success! (Using toast instead of the ugly browser alert)
+      toast.success("Employee Onboarded Successfully!", {
+        description: `Email: ${email}  |  Password: ${tempPassword}`,
+        duration: 10000, // Stays on screen for 10 seconds
+      });
       
     } catch (error: any) {
       toast.error(error.message);

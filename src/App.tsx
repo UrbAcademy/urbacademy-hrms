@@ -11,7 +11,8 @@ import Leaderboard from "@/pages/Leaderboard";
 import Teams from "@/pages/Teams";
 import Leaves from "@/pages/Leaves";
 import Attendance from "@/pages/Attendance";
-import Payroll from "@/pages/Payroll";
+import MyPayroll from "@/pages/MyPayroll";
+import AdminPayroll from "@/pages/AdminPayroll";
 import CALeads from "@/pages/CALeads";
 import SalesLeads from "@/pages/SalesLeads";
 import WAGroupUpdate from "@/pages/WAGroupUpdate";
@@ -43,7 +44,11 @@ const AppRoutes = () => (
       <Route path="/teams" element={<Teams />} />
       <Route path="/leaves" element={<Leaves />} />
       <Route path="/attendance" element={<Attendance />} />
-      <Route path="/payroll" element={<Payroll />} />
+      
+      {/* ✅ FIXED PATHS TO MATCH YOUR URLS */}
+      <Route path="/payroll" element={<MyPayroll />} />
+      <Route path="/admin-payroll" element={<AdminPayroll />} />
+      
       <Route path="/ca-leads" element={<CALeads />} />
       <Route path="/sales-leads" element={<SalesLeads />} />
       <Route path="/wa-groups" element={<WAGroupUpdate />} />
@@ -69,13 +74,8 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* 1. STRICT LOGIN ROUTE: The login page only ever loads if the URL is exactly /hr-login */}
             <Route path="/hr-login" element={<Login />} />
-            
-            {/* 2. ROOT REDIRECT: If anyone goes to localhost:8080/, instantly send them to the dashboard path */}
             <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            
-            {/* 3. APP ROUTES: Everything else goes through the Sidebar Layout */}
             <Route path="/*" element={<AppRoutes />} />
           </Routes>
         </BrowserRouter>

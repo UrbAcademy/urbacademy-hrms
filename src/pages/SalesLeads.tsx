@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
-import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X, DollarSign } from "lucide-react";
+import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X, Upload, UserCheck } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
-import { toast } from "sonner"; // Ensure sonner is installed for notifications
+import { toast } from "sonner";
+import Papa from "papaparse"; 
 
 const SalesLeads = () => {
   const [leads, setLeads] = useState<any[]>([]);
@@ -9,18 +10,96 @@ const SalesLeads = () => {
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
   
-  // Modal State
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [employees, setEmployees] = useState<any[]>([]);
+
   const [showModal, setShowModal] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     phone: "",
-    course: "Data Science", // Default option
+    course: "Data Science", 
     status: "New",
     notes: ""
   });
 
-  // 👇 NEW: Handle Status Change & Conversion
+  useEffect(() => {
+    const userStr = localStorage.getItem("currentUser");
+    const user = userStr ? JSON.parse(userStr) : null;
+    const adminStatus = user?.role === 'admin' || user?.email === 'admin@test.com';
+    setIsAdmin(adminStatus);
+
+    if (adminStatus) {
+      fetchEmployees();
+    }
+    fetchLeads();
+  }, []);
+
+  const fetchEmployees = async () => {
+    const { data } = await supabase.from('profiles').select('id, full_name');
+    if (data) setEmployees(data);
+  };
+
+  const fetchLeads = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('leads')
+       .select(`*, profiles(full_name)`) // ✅ FIXED: Using direct column join to avoid Join Error
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      if (data) setLeads(data);
+    } catch (error) {
+      console.error("Error fetching leads:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleBulkUpload = (e: any) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    Papa.parse(file, {
+      header: true,
+      skipEmptyLines: true,
+      complete: async (results) => {
+        // ✅ FIXED: Mapping 'course' from CSV to 'course_interested' in DB
+        const newLeads = results.data.map((row: any) => ({
+          name: row.name || row.Name,
+          phone: row.phone || row.Phone,
+          course_interested: row.course || row.Course || "General",
+          status: "New",
+          notes: row.notes || "Bulk Uploaded"
+        }));
+
+        const { error } = await supabase.from('leads').insert(newLeads);
+        if (error) {
+          console.error("Insert Error:", error);
+          toast.error("Upload failed. Check column names.");
+        } else {
+          toast.success(`${newLeads.length} leads added!`);
+          fetchLeads();
+        }
+      }
+    });
+  };
+
+  const handleAssignLead = async (leadId: string, employeeId: string) => {
+    try {
+      const { error } = await supabase
+        .from('leads')
+        .update({ assigned_to: employeeId })
+        .eq('id', leadId);
+
+      if (error) throw error;
+      toast.success("Lead reassigned!");
+      fetchLeads();
+    } catch (error) {
+      toast.error("Assignment failed");
+    }
+  };
+
   const handleStatusUpdate = async (leadId: string, leadName: string, currentStatus: string) => {
     const statuses = ["New", "Interested", "Follow Up", "Converted", "Rejected"];
     const nextStatus = window.prompt(
@@ -31,7 +110,6 @@ const SalesLeads = () => {
     if (!nextStatus || !statuses.includes(nextStatus) || nextStatus === currentStatus) return;
 
     try {
-      // 1. Update Lead Status
       const { error: updateError } = await supabase
         .from('leads')
         .update({ status: nextStatus })
@@ -39,10 +117,8 @@ const SalesLeads = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Logic for "Converted" -> Add to Sales table
       if (nextStatus === "Converted") {
         const amount = window.prompt(`Conversion! Enter the course fee for ${leadName}:`, "5000");
-        
         if (amount) {
           const userStr = localStorage.getItem("currentUser");
           const user = userStr ? JSON.parse(userStr) : null;
@@ -62,31 +138,10 @@ const SalesLeads = () => {
       } else {
         toast.success(`Status updated to ${nextStatus}`);
       }
-
-      fetchLeads(); // Refresh list
+      fetchLeads(); 
     } catch (error) {
       console.error("Update error:", error);
       toast.error("Failed to update status");
-    }
-  };
-
-  useEffect(() => {
-    fetchLeads();
-  }, []);
-
-  const fetchLeads = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('leads')
-        .select('*')
-        .order('date', { ascending: false });
-
-      if (error) throw error;
-      if (data) setLeads(data);
-    } catch (error) {
-      console.error("Error fetching leads:", error);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -101,7 +156,7 @@ const SalesLeads = () => {
           {
             name: formData.name,
             phone: formData.phone,
-            course: formData.course,
+            course_interested: formData.course, // ✅ FIXED: Using DB column name
             status: formData.status,
             notes: formData.notes
           }
@@ -109,7 +164,6 @@ const SalesLeads = () => {
         .select();
 
       if (error) throw error;
-
       if (data) {
         setLeads([data[0], ...leads]);
         setShowModal(false);
@@ -151,28 +205,34 @@ const SalesLeads = () => {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10 relative">
       
-      {/* Header & Actions */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Sales Leads</h2>
           <p className="text-gray-400 mt-1">Manage and track your student enquiries.</p>
         </div>
-        <button 
-          onClick={() => setShowModal(true)}
-          className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg shadow-blue-900/20 transition-all hover:scale-105"
-        >
-          <Plus className="h-5 w-5" /> Add New Lead
-        </button>
+        <div className="flex gap-3">
+          {isAdmin && (
+            <label className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 cursor-pointer shadow-lg transition-all active:scale-95">
+              <Upload className="h-5 w-5" /> Bulk Upload
+              <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
+            </label>
+          )}
+          <button 
+            onClick={() => setShowModal(true)}
+            className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg transition-all hover:scale-105"
+          >
+            <Plus className="h-5 w-5" /> Add New Lead
+          </button>
+        </div>
       </div>
 
-      {/* Toolbar */}
       <div className="bg-[#181b21] border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-4 justify-between">
         <div className="relative w-full md:w-96">
           <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
           <input 
             type="text" 
             placeholder="Search by name or phone..." 
-            className="w-full bg-black/20 border border-white/10 text-white pl-9 pr-4 py-2 rounded-lg text-sm focus:border-blue-500 outline-none transition-colors"
+            className="w-full bg-black/20 border border-white/10 text-white pl-9 pr-4 py-2 rounded-lg text-sm focus:border-blue-500 outline-none"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -195,7 +255,6 @@ const SalesLeads = () => {
         </div>
       </div>
 
-      {/* Table */}
       <div className="bg-[#181b21] border border-white/5 rounded-2xl overflow-hidden shadow-xl min-h-[400px]">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-[400px] space-y-4">
@@ -210,7 +269,7 @@ const SalesLeads = () => {
                   <th className="p-4 font-semibold">Student Name</th>
                   <th className="p-4 font-semibold">Course Interest</th>
                   <th className="p-4 font-semibold">Status</th>
-                  <th className="p-4 font-semibold">Date</th>
+                  {isAdmin && <th className="p-4 font-semibold">Assigned To</th>}
                   <th className="p-4 font-semibold text-center">Actions</th>
                 </tr>
               </thead>
@@ -221,22 +280,33 @@ const SalesLeads = () => {
                       <div className="font-medium text-white">{lead.name}</div>
                       <div className="text-xs text-gray-500 font-mono mt-0.5">{lead.phone}</div>
                     </td>
-                    <td className="p-4 text-gray-300">
-                      {lead.course}
-                      {lead.notes && (
-                        <p className="text-[10px] text-gray-500 mt-1 truncate max-w-[150px]">"{lead.notes}"</p>
-                      )}
-                    </td>
+                    {/* ✅ FIXED: Correct dynamic key */}
+                    <td className="p-4 text-gray-300">{lead.course_interested}</td>
                     <td className="p-4">
                       <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(lead.status)}`}>
                         {lead.status}
                       </span>
                     </td>
-                    <td className="p-4 text-gray-400 flex items-center gap-2">
-                      <Calendar className="h-3 w-3" /> 
-                      {lead.date ? new Date(lead.date).toLocaleDateString("en-IN", { day: 'numeric', month: 'short' }) : 'Just now'}
-                    </td>
-                    <td className="p-4">
+                    
+                    {isAdmin && (
+                      <td className="p-4">
+                        <select 
+                          className="bg-black/40 border border-white/10 text-xs text-gray-300 rounded-lg p-2 outline-none focus:border-blue-500"
+                          value={lead.assigned_to || ""}
+                          onChange={(e) => handleAssignLead(lead.id, e.target.value)}
+                        >
+                          <option value="">Unassigned</option>
+                          {employees.map(emp => (
+                            <option key={emp.id} value={emp.id}>{emp.full_name}</option>
+                          ))}
+                        </select>
+                        {lead.assigned_profile?.full_name && (
+                           <div className="text-[10px] text-blue-400 mt-1 italic">Assigned: {lead.assigned_profile.full_name}</div>
+                        )}
+                      </td>
+                    )}
+
+                    <td className="p-4 text-center">
                       <div className="flex justify-center items-center gap-2">
                         <button onClick={() => handleCall(lead.phone)} className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
                           <Phone className="h-4 w-4" />
@@ -244,7 +314,6 @@ const SalesLeads = () => {
                         <button onClick={() => handleWhatsApp(lead.phone, lead.name)} className="p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all">
                           <MessageCircle className="h-4 w-4" />
                         </button>
-                        {/* 👇 UPDATED: More Actions triggers Status Update */}
                         <button 
                           onClick={() => handleStatusUpdate(lead.id, lead.name, lead.status)}
                           className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
@@ -261,7 +330,6 @@ const SalesLeads = () => {
         )}
       </div>
 
-      {/* Add Lead Modal */}
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
           <div className="bg-[#181b21] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl relative">

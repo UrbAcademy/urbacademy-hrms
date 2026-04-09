@@ -4,7 +4,7 @@ import {
   LayoutDashboard, IndianRupee, Trophy, Users, CalendarDays, CheckCircle,
   Wallet, UserSearch, TrendingUp, MessageSquare, FileText, ClipboardList,
   BookOpen, GraduationCap, FolderOpen, Ticket, User, ChevronLeft,
-  Bell, Moon, Sun, Menu, LogOut, ShieldCheck, UserPlus // 👈 Added UserPlus here
+  Bell, Moon, Sun, Menu, LogOut, ShieldCheck, UserPlus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -14,7 +14,8 @@ export const useTheme = () => useContext(ThemeContext);
 
 const navItems = [
   { label: "Admin Panel", icon: ShieldCheck, path: "/admin", adminOnly: true }, 
-  { label: "Add Employee", icon: UserPlus, path: "/add-employee", adminOnly: true }, // 👈 Added this link
+  { label: "Add Employee", icon: UserPlus, path: "/add-employee", adminOnly: true },
+  { label: "Admin Payroll", icon: Wallet, path: "/admin-payroll", adminOnly: true }, // ✅ Added Admin Payroll
   { label: "Dashboard", icon: LayoutDashboard, path: "/dashboard" },
   { label: "Revenue", icon: IndianRupee, path: "/revenue" },
   { label: "Leaderboard", icon: Trophy, path: "/leaderboard" },
