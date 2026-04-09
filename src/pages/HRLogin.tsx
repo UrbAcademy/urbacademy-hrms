@@ -30,7 +30,7 @@ const HRLogin = () => {
 
       // ✅ SUCCESS
       // Save the user data we got from the database
-      localStorage.setItem("currentUser", JSON.stringify(data));
+    sessionStorage.setItem("currentUser", JSON.stringify(data));
       setLoading(false);
       navigate("/"); // Go to Dashboard
 

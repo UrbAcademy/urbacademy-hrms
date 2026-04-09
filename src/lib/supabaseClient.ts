@@ -1,7 +1,15 @@
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from '@supabase/supabase-js'
 
-// Replace these with your actual keys from Supabase Dashboard -> Settings -> API
 const supabaseUrl = 'https://txanefidfaqdjismzmvv.supabase.co';
-const supabaseKey = 'sb_publishable_cmBVoJmMl74szIUsWFSrhQ_NBpDZcRU';
+const supabaseAnonKey = 'sb_publishable_cmBVoJmMl74szIUsWFSrhQ_NBpDZcRU';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    storage: window.sessionStorage, // 👈 THE MAGIC LINE
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: true
+  }
+})
+
+

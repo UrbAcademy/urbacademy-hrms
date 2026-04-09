@@ -17,7 +17,7 @@ export default function Dashboard() {
   useEffect(() => {
     // ✅ Made this async to fetch fresh profile data
     const checkSession = async () => {
-      const storedUser = localStorage.getItem("currentUser");
+      const storedUser = sessionStorage.getItem("currentUser");
       
       if (storedUser) {
         try {
