@@ -56,7 +56,6 @@ export default function Login() {
   };
   // --- END LOGIC ---
 
-  // 👇 FIXED: Changed the ease array to a standard string so TypeScript is happy
   const itemVariants = {
     hidden: { y: 20, opacity: 0 },
     visible: { y: 0, opacity: 1, transition: { duration: 0.6, ease: "easeOut" } }
@@ -73,14 +72,22 @@ export default function Login() {
         variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
         className="w-full max-w-[420px] z-10"
       >
-        {/* LOGO SECTION */}
-        <motion.div variants={itemVariants} className="text-center mb-10">
-          <h1 className="text-5xl sm:text-6xl font-black text-white tracking-tight drop-shadow-[0_0_20px_rgba(59,130,246,0.4)]">
-            Urb<span className="text-blue-500">Academy</span>
-          </h1>
-          <p className="mt-3 text-blue-400/80 font-bold uppercase tracking-[0.25em] text-[10px]">
-            Authorization Terminal
-          </p>
+        {/* ✅ EXACT LOGO LAYOUT FROM YOUR SCREENSHOT */}
+        <motion.div variants={itemVariants} className="flex items-center justify-center gap-4 mb-10 w-full">
+          {/* Make sure your logo image is named logo.png and placed in the public folder */}
+          <img 
+            src="/logo.png" 
+            alt="UrbAcademy Logo" 
+            className="w-14 h-14 sm:w-16 sm:h-16 object-contain drop-shadow-[0_0_15px_rgba(59,130,246,0.3)]"
+          />
+          <div className="flex flex-col text-left">
+            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-[0.15em] uppercase drop-shadow-md">
+              URBACADEMY
+            </h1>
+            <p className="text-blue-500 font-bold uppercase tracking-[0.2em] text-[8px] sm:text-[9px] mt-0.5">
+              Empowering The Modern Dreamer
+            </p>
+          </div>
         </motion.div>
 
         {/* PREMIUM CARD */}
