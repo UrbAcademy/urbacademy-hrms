@@ -45,13 +45,14 @@ export default function Login() {
         role: role, 
       };
       
-      localStorage.setItem("currentUser", JSON.stringify(userSession));
+      // ✅ FIXED: Changed localStorage to sessionStorage to match the rest of the app
+      sessionStorage.setItem("currentUser", JSON.stringify(userSession));
 
       // 4. Route based on role
       if (role === "admin") {
         navigate("/admin"); 
       } else {
-        navigate("/revenue"); 
+        navigate("/dashboard"); // ✅ Changed to dashboard so you can actually see the page you want
       }
     }
     

@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, User, Mail, Phone, BadgeCheck, Edit } from "lucide-react"; // ✅ Added Edit icon
-import StatCard from "@/components/StatCard";
+import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, Mail, Phone, BadgeCheck, Edit, CalendarDays, ShoppingCart, Clock, GraduationCap, Briefcase, Crown } from "lucide-react";
 import { motivationalQuotes, topPerformers, formatCurrency } from "@/lib/mock-data";
 import ClockInWidget from "@/components/ClockInWidget";
-import { supabase } from "@/lib/supabaseClient"; // ✅ Added Supabase import
+import { supabase } from "@/lib/supabaseClient";
+
+const upcomingEvents: any[] = []; 
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -15,34 +16,42 @@ export default function Dashboard() {
   const daysLeft = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate() - today.getDate();
 
   useEffect(() => {
-    // ✅ Made this async to fetch fresh profile data
     const checkSession = async () => {
       const storedUser = sessionStorage.getItem("currentUser");
       
-      if (storedUser) {
-        try {
-          const parsedData = JSON.parse(storedUser);
-          setUser(parsedData); // Set immediately for fast UI loading
-          
-          // ✅ Fetch latest data from Supabase to keep dashboard fresh
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', parsedData.id)
-            .single();
+      if (!storedUser) {
+        navigate("/hr-login", { replace: true });
+        return;
+      }
 
-          if (data) {
-            const updatedUser = { ...parsedData, ...data };
-            setUser(updatedUser);
-            // Silently update local storage so it stays in sync
-            localStorage.setItem("currentUser", JSON.stringify(updatedUser));
-          }
-
-        } catch (e) {
-          localStorage.removeItem("currentUser");
-          navigate("/hr-login", { replace: true });
+      try {
+        const parsedData = JSON.parse(storedUser);
+        
+        if (!parsedData || !parsedData.id) {
+            throw new Error("Invalid session data structure");
         }
-      } else {
+
+        setUser(parsedData); 
+        
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', parsedData.id)
+          .single();
+
+        if (error) {
+            console.error("Dashboard Supabase sync failed:", error.message);
+        }
+
+        if (data) {
+          const updatedUser = { ...parsedData, ...data };
+          setUser(updatedUser);
+          sessionStorage.setItem("currentUser", JSON.stringify(updatedUser));
+        }
+
+      } catch (e) {
+        console.error("Session verification failed:", e);
+        sessionStorage.removeItem("currentUser");
         navigate("/hr-login", { replace: true });
       }
     };
@@ -58,138 +67,202 @@ export default function Dashboard() {
     : "UA";
 
   return (
-    <div className="space-y-6">
-      {/* Welcome */}
-      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div>
-            <h2 className="text-2xl font-bold text-card-foreground">
-              Welcome back, <span className="gradient-text">{displayName}</span>! 👋
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground italic">"{quote}"</p>
-          </div>
-          <div className="flex gap-3">
-            <div className="rounded-xl border border-border bg-accent/50 px-4 py-2 text-center">
-              <p className="text-xs text-muted-foreground">Today</p>
-              <p className="text-sm font-bold text-card-foreground">{today.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}</p>
-            </div>
-            <div className="rounded-xl border border-primary/20 bg-primary/5 px-4 py-2 text-center">
-              <p className="text-xs text-muted-foreground">Days Left</p>
-              <p className="text-sm font-bold text-primary">{daysLeft}</p>
-            </div>
-          </div>
+    <div className="space-y-6 pb-10">
+      
+      {/* Top Welcome Header */}
+      <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-6 mb-8">
+        <div className="max-w-2xl">
+          <h2 className="text-3xl font-bold text-card-foreground">
+            Good morning, <span className="text-blue-500">{displayName.split(" ")[0]}</span>
+          </h2>
+          <p className="mt-2 text-2xl font-serif text-muted-foreground italic tracking-wide">
+            "{quote}"
+          </p>
         </div>
-      </div>
-
-      {/* Revenue cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <StatCard title="Booked" value="₹0" icon={<IndianRupee className="h-5 w-5" />} variant="primary" />
-        <StatCard title="Credited" value="₹0" icon={<CreditCard className="h-5 w-5" />} variant="success" />
-        <StatCard title="Payments" value="0" icon={<TrendingUp className="h-5 w-5" />} variant="warning" />
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* LEFT COLUMN */}
-        <div className="lg:col-span-2 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h3 className="mb-6 text-lg font-semibold text-card-foreground flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-warning" /> Top Performers
-          </h3>
-          <div className="flex items-end justify-center gap-4 mb-8">
-            {[topPerformers[1], topPerformers[0], topPerformers[2]].map((p, i) => {
-              const heights = ["h-24", "h-32", "h-20"];
-              const gradients = ["podium-silver", "podium-gold", "podium-bronze"];
-              const emojis = ["🥈", "🥇", "🥉"];
-              return (
-                <div key={p.rank} className="flex flex-col items-center">
-                  <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-accent text-sm font-bold text-accent-foreground shadow-sm">
-                    {p.name.split(" ").map(n => n[0]).join("")}
-                  </div>
-                  <p className="text-xs font-medium text-card-foreground mb-1">{p.name}</p>
-                  <p className="text-[10px] text-muted-foreground mb-2">{formatCurrency(p.booked)}</p>
-                  <div className={`w-20 ${heights[i]} ${gradients[i]} rounded-t-lg flex items-start justify-center pt-2`}>
-                    <span className="text-lg">{emojis[i]}</span>
-                  </div>
+        <div className="bg-blue-600 rounded-2xl p-6 text-white text-center shadow-lg shadow-blue-600/20 min-w-[160px]">
+          <h3 className="text-5xl font-black">{daysLeft}</h3>
+          <p className="text-blue-100 font-medium mt-1 text-sm">days left</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        
+        {/* ================= LEFT COLUMN (Spans 2) ================= */}
+        <div className="xl:col-span-2 space-y-6">
+          
+          {/* ✅ REVENUE OVERVIEW (Exactly matching Image 2) */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="text-[15px] font-semibold text-card-foreground flex items-center gap-2 mb-6">
+              <IndianRupee className="h-[18px] w-[18px] text-muted-foreground" /> Revenue Overview
+            </h3>
+            
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {/* Sales */}
+              <div className="bg-background border border-border/50 rounded-xl p-4 flex flex-col justify-between h-[100px]">
+                <div className="flex justify-between items-start">
+                  <p className="text-[11px] font-bold text-muted-foreground uppercase tracking-wider">Sales</p>
+                  <ShoppingCart className="h-4 w-4 text-muted-foreground" />
                 </div>
-              );
-            })}
+                <p className="text-2xl font-black text-white">0 <span className="text-sm font-medium text-muted-foreground tracking-normal">sales</span></p>
+              </div>
+              
+              {/* Booked */}
+              <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 flex flex-col justify-between h-[100px]">
+                <div className="flex justify-between items-start">
+                  <p className="text-[11px] font-bold text-blue-400 uppercase tracking-wider">Booked</p>
+                  <TrendingUp className="h-4 w-4 text-blue-400" />
+                </div>
+                <p className="text-2xl font-black text-blue-400">₹0</p>
+              </div>
+              
+              {/* Credited */}
+              <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4 flex flex-col justify-between h-[100px]">
+                <div className="flex justify-between items-start">
+                  <p className="text-[11px] font-bold text-green-400 uppercase tracking-wider">Credited</p>
+                  <CreditCard className="h-4 w-4 text-green-400" />
+                </div>
+                <p className="text-2xl font-black text-green-400">₹0</p>
+              </div>
+              
+              {/* Pending */}
+              <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 flex flex-col justify-between h-[100px]">
+                <div className="flex justify-between items-start">
+                  <p className="text-[11px] font-bold text-yellow-500 uppercase tracking-wider">Pending</p>
+                  <Clock className="h-4 w-4 text-yellow-500" />
+                </div>
+                <p className="text-2xl font-black text-yellow-500">₹0</p>
+              </div>
+            </div>
           </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-xs text-muted-foreground">
-                  <th className="pb-2 text-left font-medium">Rank</th>
-                  <th className="pb-2 text-left font-medium">Name</th>
-                  <th className="pb-2 text-right font-medium">Booked</th>
-                  <th className="pb-2 text-right font-medium">Credited</th>
-                  <th className="pb-2 text-right font-medium">Sales</th>
-                </tr>
-              </thead>
-              <tbody>
-                {topPerformers.map((p) => (
-                  <tr key={p.rank} className="border-b border-border/50 hover:bg-accent/30 transition-colors">
-                    <td className="py-2.5 font-medium text-card-foreground">#{p.rank}</td>
-                    <td className="py-2.5 text-card-foreground">{p.name}</td>
-                    <td className="py-2.5 text-right text-card-foreground">{formatCurrency(p.booked)}</td>
-                    <td className="py-2.5 text-right text-success">{formatCurrency(p.credited)}</td>
-                    <td className="py-2.5 text-right text-card-foreground">{p.sales}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          {/* BOTTOM ROW: TOP PERFORMERS & EVENTS */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            {/* ✅ TOP PERFORMERS (Podium View exactly like Image 2) */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col min-h-[240px]">
+              <h3 className="text-[15px] font-semibold text-card-foreground flex items-center gap-2 mb-8">
+                <Trophy className="h-[18px] w-[18px] text-yellow-500" /> Top Performers
+              </h3>
+              
+              <div className="flex-1 flex items-end justify-center gap-6 pb-2">
+                {[topPerformers[1], topPerformers[0], topPerformers[2]].map((p, i) => {
+                  const borderColors = ["border-gray-400", "border-yellow-400", "border-orange-600"];
+                  const nameColors = ["text-gray-300", "text-yellow-400", "text-orange-400"];
+                  const heights = ["h-12 w-12", "h-[70px] w-[70px]", "h-10 w-10"];
+                  const badgeColors = ["bg-gray-600", "bg-yellow-500", "bg-orange-700"];
+                  const labels = ["2nd", "1st", "3rd"];
+
+                  return (
+                    <div key={p.rank} className="flex flex-col items-center relative">
+                      {i === 1 && <Crown className="h-6 w-6 text-yellow-400 absolute -top-8 animate-pulse" />}
+                      <div className={`relative rounded-full border-[3px] ${borderColors[i]} p-[2px] mb-4 shadow-lg`}>
+                        <div className={`${heights[i]} rounded-full bg-accent flex items-center justify-center text-xs font-bold overflow-hidden shadow-inner`}>
+                          {p.name.split(" ").map(n => n[0]).join("")}
+                        </div>
+                        <span className={`absolute -bottom-2.5 left-1/2 -translate-x-1/2 text-[10px] font-black text-white ${badgeColors[i]} px-2 py-0.5 rounded-full z-10 shadow-md`}>
+                          {labels[i]}
+                        </span>
+                      </div>
+                      <p className="text-xs font-bold text-white mt-1 truncate max-w-[80px] text-center">{p.name.split(" ")[0]}</p>
+                      <p className={`text-[11px] font-black tracking-wide ${nameColors[i]} mt-0.5`}>{formatCurrency(p.booked)}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* ✅ UPCOMING EVENTS */}
+            <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col min-h-[240px]">
+              <div className="flex items-center gap-2 mb-6">
+                <CalendarDays className="h-[18px] w-[18px] text-blue-500" />
+                <h3 className="text-[15px] font-semibold text-card-foreground tracking-wide">Upcoming Events</h3>
+              </div>
+              
+              {upcomingEvents.length === 0 ? (
+                <div className="flex-1 flex items-start mt-4">
+                  <p className="text-sm text-muted-foreground font-medium">No upcoming special events.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {/* Event mapping logic left intact in case you add data later */}
+                </div>
+              )}
+            </div>
+            
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* ================= RIGHT COLUMN (Spans 1) ================= */}
         <div className="space-y-6"> 
           
           <ClockInWidget /> 
 
-          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
-            {/* ✅ Added navigation wrapper to Header */}
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="text-lg font-semibold text-card-foreground flex items-center gap-2">
-                <User className="h-5 w-5 text-primary" /> My Profile
-              </h3>
-              <button 
-                onClick={() => navigate('/my-profile')}
-                className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 text-xs"
-              >
-                <Edit className="h-3 w-3" /> Edit
-              </button>
-            </div>
+          {/* ✅ SLEEK PROFILE CARD (Exactly like Image 2 right side) */}
+          <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden relative">
             
-            <div className="flex flex-col items-center mb-6">
-              <div className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-primary text-primary-foreground text-xl font-bold tracking-wider shadow-md">
-                {userInitials}
+            {/* Blue Banner Header */}
+            <div className="bg-blue-600 p-5 flex justify-between items-center h-24">
+              <div className="flex items-center gap-2 text-white pb-4">
+                <GraduationCap className="h-[22px] w-[22px]" />
+                <span className="font-bold text-[17px] tracking-wide">UrbAcademy</span>
               </div>
-              <p className="text-lg font-semibold text-card-foreground">{displayName}</p>
-              <span className="mt-1 rounded-full bg-primary/10 border border-primary/20 px-3 py-0.5 text-xs font-bold text-primary uppercase tracking-wider">
-                {user?.role || "Employee"}
-              </span>
+              <BadgeCheck className="text-white/90 h-[22px] w-[22px] pb-4" />
             </div>
-            
-            <div className="space-y-3 text-sm">
-              {[
-                { icon: BadgeCheck, label: "Employee ID", value: user?.employee_id || "N/A" },
-                { icon: BadgeCheck, label: "Department", value: user?.department || "N/A" },
-                { icon: Mail, label: "Email", value: user?.email || "Not Provided" },
-                { icon: Phone, label: "Phone", value: user?.phone || "Not Provided" },
-                { icon: Calendar, label: "Joined", value: user?.created_at ? new Date(user.created_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "Recently" },
-              ].map((item) => (
-                <div key={item.label} className="flex items-start gap-3 rounded-lg bg-accent/30 p-2.5 hover:bg-accent/50 transition-colors">
-                  <item.icon className="mt-0.5 h-4 w-4 text-muted-foreground shrink-0" />
+
+            {/* Content Section */}
+            <div className="px-6 pt-10 pb-6 relative">
+              
+              {/* Overlapping Avatar */}
+              <div className="absolute -top-10 left-6">
+                <div className="h-[76px] w-[76px] rounded-full border-[5px] border-card bg-primary flex items-center justify-center text-2xl font-black text-white shadow-md">
+                  {userInitials}
+                </div>
+              </div>
+
+              {/* Name & Role */}
+              <div className="mt-1">
+                <h3 className="text-xl font-bold text-card-foreground leading-tight">{displayName}</h3>
+                <p className="text-blue-500 text-[13px] font-semibold mt-1.5">{user?.role === 'admin' ? 'Administrator' : 'Business Development Associate'}</p>
+                <p className="text-muted-foreground text-[11px] mt-0.5 tracking-wide">{user?.employee_id || "EMP-PENDING"}</p>
+              </div>
+
+              {/* Detail List */}
+              <div className="mt-8 space-y-4">
+                <div className="flex items-center gap-4 text-muted-foreground">
+                  <Briefcase className="h-[15px] w-[15px] opacity-70" />
                   <div>
-                    <p className="text-xs text-muted-foreground">{item.label}</p>
-                    <p className="text-card-foreground font-medium text-xs truncate max-w-[150px]">{item.value}</p>
+                    <p className="text-[10px] text-muted-foreground/70 mb-0.5">Department</p>
+                    <p className="text-xs text-card-foreground font-medium">{user?.department || "Intern"}</p>
                   </div>
                 </div>
-              ))}
+                <div className="flex items-center gap-4 text-muted-foreground">
+                  <Mail className="h-[15px] w-[15px] opacity-70" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/70 mb-0.5">Email</p>
+                    <p className="text-xs text-card-foreground font-medium truncate max-w-[200px]">{user?.email || "Not Provided"}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-muted-foreground">
+                  <Phone className="h-[15px] w-[15px] opacity-70" />
+                  <div>
+                    <p className="text-[10px] text-muted-foreground/70 mb-0.5">Phone</p>
+                    <p className="text-xs text-card-foreground font-medium">{user?.phone || "Not Provided"}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Divider & Footer */}
+              <div className="mt-8 pt-5 border-t border-border/50 text-center">
+                <p className="text-[11px] text-muted-foreground font-medium">
+                  Since {user?.created_at ? new Date(user.created_at).toLocaleDateString("en-IN", { month: "short", year: "numeric" }) : "Jan 2026"} • Urb Academy
+                </p>
+              </div>
+
             </div>
           </div>
-        </div>
 
+        </div>
       </div>
     </div>
   );

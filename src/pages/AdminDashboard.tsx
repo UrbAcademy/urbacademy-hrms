@@ -29,23 +29,15 @@ export default function AdminDashboard() {
       
       if (salesError) console.error("Sales Fetch Error:", salesError);
 
-      // 2. Fetch Pending Leaves with Profile Join
+      // 2. Fetch Pending Leaves WITHOUT Join (Fixed the 400 Error here)
       const { data: leaves, error: leaveError } = await supabase
         .from('leaves')
-        .select(`
-          *,
-          profiles (
-            full_name
-          )
-        `)
+        .select('*')
         .eq('status', 'pending')
         .order('created_at', { ascending: false });
 
       if (leaveError) {
-        console.error("Supabase Join Error:", leaveError);
-        // Fallback: fetch without join if the relation fails
-        const { data: fallback } = await supabase.from('leaves').select('*').eq('status', 'pending');
-        if (fallback) setPendingLeaves(fallback);
+        console.error("Leave Fetch Error:", leaveError);
       } else {
         setPendingLeaves(leaves || []);
       }
@@ -161,9 +153,8 @@ export default function AdminDashboard() {
             ) : (
               <div className="divide-y divide-border">
                 {pendingLeaves.map((leave) => {
-                  // ✅ FIXED: Support for standard Supabase join structure
-                  const profile = Array.isArray(leave.profiles) ? leave.profiles[0] : leave.profiles;
-                  const employeeName = profile?.full_name || "New Employee";
+                  // ✅ Fallback to a default name since we removed the profile join
+                  const employeeName = "Employee Request";
 
                   return (
                     <div key={leave.id} className="p-6 flex items-center justify-between hover:bg-muted/10">

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Trophy, TrendingUp, TrendingDown, Minus, Crown, Search, Filter } from "lucide-react";
+import { Trophy, TrendingUp, TrendingDown, Minus, Crown, Search, Filter, ChevronLeft, ChevronRight, Calendar, ChevronDown, Check } from "lucide-react"; // ✅ Added dropdown icons
 
 // Mock Data
 const initialData = [
@@ -16,8 +16,23 @@ const initialData = [
   { rank: 10, name: "Zara Khan", sales: 12, revenue: 48000, trend: "up", avatar: "ZK" },
 ];
 
+// ✅ Helper to generate the last 12 months for the dropdown
+const generateMonths = () => {
+  const months = [];
+  const date = new Date(2026, 3); // Starts at April 2026
+  for (let i = 0; i < 12; i++) {
+    months.push(date.toLocaleString('default', { month: 'long', year: 'numeric' }));
+    date.setMonth(date.getMonth() - 1);
+  }
+  return months;
+};
+
+const availableMonths = generateMonths();
+
 const Leaderboard = () => {
-  const [timeFrame, setTimeFrame] = useState("This Month");
+  // ✅ Updated state to use the generated months and control the dropdown
+  const [timeFrame, setTimeFrame] = useState(availableMonths[0]);
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
   const filteredData = initialData.filter(user => 
@@ -26,6 +41,17 @@ const Leaderboard = () => {
 
   const top3 = filteredData.slice(0, 3);
   const rest = filteredData.slice(3);
+
+  // ✅ Arrow navigation logic
+  const handlePrevMonth = () => {
+    const currentIndex = availableMonths.indexOf(timeFrame);
+    if (currentIndex < availableMonths.length - 1) setTimeFrame(availableMonths[currentIndex + 1]);
+  };
+
+  const handleNextMonth = () => {
+    const currentIndex = availableMonths.indexOf(timeFrame);
+    if (currentIndex > 0) setTimeFrame(availableMonths[currentIndex - 1]);
+  };
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500 pb-10">
@@ -36,24 +62,65 @@ const Leaderboard = () => {
           <h2 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
             <Trophy className="h-8 w-8 text-yellow-500" /> Sales Leaderboard
           </h2>
-          <p className="text-gray-400 mt-1">Real-time performance rankings.</p>
+          <p className="text-gray-400 mt-1">Real-time performance rankings for {timeFrame}</p>
         </div>
         
-        {/* Time Toggle */}
-        <div className="bg-[#181b21] p-1 rounded-xl flex border border-white/10">
-          {["Today", "This Week", "This Month"].map((tf) => (
+        {/* ✅ NEW: Premium Month Selector */}
+        <div className="flex items-center gap-2">
+          {/* Left Arrow */}
+          <button 
+            onClick={handlePrevMonth} 
+            disabled={availableMonths.indexOf(timeFrame) === availableMonths.length - 1} 
+            className="p-2.5 rounded-lg bg-[#181b21] border border-white/10 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </button>
+
+          {/* Dropdown Container */}
+          <div className="relative z-50">
             <button
-              key={tf}
-              onClick={() => setTimeFrame(tf)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-                timeFrame === tf 
-                ? "bg-blue-600 text-white shadow-lg" 
-                : "text-gray-400 hover:text-white"
-              }`}
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-[#181b21] border border-white/10 text-gray-300 hover:text-white transition-colors min-w-[190px] justify-between"
             >
-              {tf}
+              <div className="flex items-center gap-2.5">
+                <Calendar className="h-4 w-4 text-gray-400" />
+                <span className="text-sm font-medium">{timeFrame}</span>
+              </div>
+              <ChevronDown className="h-4 w-4 text-gray-500" />
             </button>
-          ))}
+
+            {/* Dropdown Menu */}
+            {isDropdownOpen && (
+              <div className="absolute top-full right-0 mt-2 w-full min-w-[190px] bg-[#181b21] border border-white/10 rounded-lg shadow-[0_10px_40px_rgba(0,0,0,0.5)] overflow-hidden">
+                <div className="max-h-64 overflow-y-auto py-1 custom-scrollbar">
+                  {availableMonths.map((month) => (
+                    <button
+                      key={month}
+                      onClick={() => {
+                        setTimeFrame(month);
+                        setIsDropdownOpen(false);
+                      }}
+                      className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-left hover:bg-white/5 transition-colors"
+                    >
+                      <span className={timeFrame === month ? "text-white font-medium" : "text-gray-400"}>
+                        {month}
+                      </span>
+                      {timeFrame === month && <Check className="h-4 w-4 text-white" />}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Arrow */}
+          <button 
+            onClick={handleNextMonth} 
+            disabled={availableMonths.indexOf(timeFrame) === 0} 
+            className="p-2.5 rounded-lg bg-[#181b21] border border-white/10 text-gray-400 hover:text-white disabled:opacity-30 transition-colors"
+          >
+            <ChevronRight className="h-4 w-4" />
+          </button>
         </div>
       </div>
 
