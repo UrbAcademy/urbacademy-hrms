@@ -3,7 +3,8 @@ import {
   Youtube, MessageCircle, Link as LinkIcon, CreditCard, Award, 
   FileText, FileCheck, BookOpen, Folder, Trophy, Mic, QrCode, 
   RefreshCw, Search, Copy, ExternalLink, Calendar, PlayCircle,
-  CheckCircle2, FilePlus, Trash2, Download, Eye, Plus, X // ✅ FIXED: Added Plus and X to the imports
+  CheckCircle2, FilePlus, Trash2, Download, Eye, Plus, X,
+  Shield, Globe // ✅ Added for Documentations
 } from "lucide-react";
 
 // Mock data for the sidebar menu
@@ -80,8 +81,19 @@ const payuLinks = [
   { id: 9, amount: "5,000", link: "" },
 ];
 
+// ✅ NEW: Documentations Mock Data matching SS
+const documentations = [
+  { title: "CATC Certiport Certificate", id: null, verification: null, hasVerify: false, logo: "Certiport" },
+  { title: "Startup India Certificate", id: "DIPP121653", verification: "Startup India Verification", hasVerify: true, logo: "Startup India" },
+  { title: "Company PAN Card", id: null, verification: null, hasVerify: false, logo: "Income Tax Department" },
+  { title: "Udyam Registration Certificate", id: "UDYAM-DL-11-0117029", verification: "UDYAM Verification", hasVerify: true, logo: "Udyam Registration" },
+  { title: "Tax Deduction and Collection Account Number", id: "DELI219538B", verification: null, hasVerify: false, logo: "Income Tax Department" },
+  { title: "GST Certificate", id: "07AAICE7591H1Z8", verification: null, hasVerify: false, logo: "Goods and Services Tax" },
+  { title: "Certificate of Incorporation", id: "U85400DL2025PTC445067", verification: null, hasVerify: false, logo: "Ministry of Corporate Affairs" },
+];
+
 export default function Resources() {
-  const [activeMenu, setActiveMenu] = useState('youtube'); 
+  const [activeMenu, setActiveMenu] = useState('docs'); // Default to docs for immediate view
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
@@ -90,7 +102,10 @@ export default function Resources() {
       {/* LEFT SIDEBAR: Resource Menu */}
       <div className="w-full md:w-72 shrink-0 flex flex-col">
         <div className="bg-[#181b21] rounded-2xl border border-white/5 p-4 flex-1">
-          <div className="mb-6 px-2 text-xs font-bold text-gray-500 tracking-wider uppercase tracking-widest">Resources</div>
+          <div className="mb-6 px-2">
+            <h3 className="text-xs font-bold text-gray-500 tracking-wider uppercase mb-1">Resources</h3>
+            <p className="text-sm text-gray-400">Choose a section to open its dedicated page.</p>
+          </div>
 
           <nav className="space-y-0.5">
             {resourceMenus.map((menu) => (
@@ -505,7 +520,6 @@ export default function Resources() {
           </div>
         )
 
-        /* ✅ CUSTOM RECEIPT GENERATOR: Perfectly matching your detailed screenshot */
         : activeMenu === 'receipts' ? (
           <div className="flex flex-col h-full gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
             <div className="flex items-center gap-4">
@@ -519,7 +533,6 @@ export default function Resources() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-              {/* Form Area */}
               <div className="bg-[#181b21] rounded-2xl border border-white/5 overflow-hidden shadow-xl">
                 <div className="bg-green-600/10 p-5 border-b border-white/5 flex items-center gap-3">
                    <FileText className="h-4 w-4 text-green-400" />
@@ -527,104 +540,93 @@ export default function Resources() {
                 </div>
                 <div className="p-6 space-y-5">
                   <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Receipt No.</label>
-                      <input type="text" value="RCT-20260409-8SJ2B1" readOnly className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2.5 text-xs text-gray-400" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Registration ID</label>
-                      <input type="text" placeholder="12203002" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2.5 text-xs text-white outline-none" />
-                    </div>
+                    <input type="text" value="RCT-20260409-8SJ2B1" readOnly className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2.5 text-xs text-gray-400" />
+                    <input type="text" placeholder="12203002" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2.5 text-xs text-white outline-none" />
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Payment No.</label>
-                      <input type="text" placeholder="1" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Receipt Date</label>
-                      <input type="date" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-[10px] text-white outline-none" />
-                    </div>
-                    <div className="space-y-1.5">
-                      <label className="text-[10px] font-bold text-gray-500 uppercase">Payment Date</label>
-                      <input type="date" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-[10px] text-white outline-none" />
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Customer Name" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                    <input type="text" placeholder="Customer Mobile" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <input type="text" placeholder="Payment Amount (INR)" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                    <input type="text" placeholder="Total Amount (INR)" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-bold text-gray-500 uppercase">Domain Names (comma-separated)</label>
-                    <input type="text" placeholder="web develop" className="w-full rounded-lg border border-white/10 bg-black/20 px-4 py-2 text-xs text-white outline-none" />
-                  </div>
-                  <div className="flex justify-between items-center py-4 bg-black/20 rounded-xl px-4 border border-white/5">
-                    <span className="text-[10px] font-bold text-white uppercase tracking-wider">Remaining Amount</span>
-                    <span className="text-sm font-black text-white">₹1,700.00</span>
-                  </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 py-3 rounded-xl bg-[#22c55e] hover:bg-[#16a34a] text-black text-xs font-bold flex items-center justify-center gap-2 transition-colors">
-                      <FileCheck className="h-4 w-4" /> Generate Receipt
-                    </button>
-                    <button className="p-3 rounded-xl border border-white/10 bg-white/5 text-gray-400 hover:bg-white/10 transition-colors"><X className="h-4 w-4" /></button>
-                  </div>
+                  <button className="w-full py-3 rounded-xl bg-[#22c55e] text-black text-xs font-bold flex items-center justify-center gap-2 transition-colors">
+                    <FileText className="h-4 w-4" /> Generate Receipt
+                  </button>
                 </div>
               </div>
+              <div className="bg-[#181b21] rounded-2xl border border-white/5 overflow-hidden flex flex-col h-full min-h-[550px]">
+                <div className="bg-blue-600/10 p-5 border-b border-white/5 flex items-center gap-3">
+                  <CheckCircle2 className="h-4 w-4 text-blue-400" />
+                  <h3 className="text-sm font-bold text-white">Receipt Preview</h3>
+                </div>
+                <div className="flex-1 p-6 flex flex-col items-center justify-center text-center">
+                  <FileCheck className="h-8 w-8 text-gray-600 mb-4" />
+                  <p className="text-sm text-gray-400 max-w-xs leading-relaxed">Fill details and generate a receipt to preview it here</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )
 
-              {/* Preview Area */}
-              <div className="flex flex-col gap-4">
-                <div className="bg-[#181b21] rounded-2xl border border-white/5 overflow-hidden flex flex-col min-h-[500px]">
-                  <div className="bg-blue-600/10 p-5 border-b border-white/5 flex items-center gap-3">
-                    <CheckCircle2 className="h-4 w-4 text-blue-400" />
-                    <h3 className="text-sm font-bold text-white">Receipt Preview</h3>
+        /* ✅ NEW: Render Documentation Section exactly like screenshot */
+        : activeMenu === 'docs' ? (
+          <div className="flex flex-col h-full gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
+            <div className="flex items-center gap-4">
+              <div className="h-12 w-12 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-500 shrink-0">
+                <Folder className="h-6 w-6" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-white">Company Documentations</h2>
+                <p className="text-sm text-gray-400">Permanent links for legal and compliance documents</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {documentations.map((doc, idx) => (
+                <div key={idx} className="bg-[#181b21] rounded-2xl border border-white/5 overflow-hidden flex flex-col hover:border-white/10 transition-all group">
+                  <div className="p-4 border-b border-white/5 flex justify-between items-center">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">Document</span>
+                    <div className="flex gap-2">
+                       <span className="bg-white/5 text-gray-400 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">Govt</span>
+                       <span className="bg-white/5 text-gray-400 text-[8px] font-bold px-1.5 py-0.5 rounded uppercase">PDF</span>
+                    </div>
                   </div>
-                  <div className="flex-1 p-6 flex items-center justify-center">
-                    <div className="w-full h-full bg-white rounded shadow-2xl p-8 flex flex-col relative text-black">
-                       <div className="flex justify-between items-start mb-6">
-                          <div className="flex items-center gap-1 text-blue-600 font-black tracking-tighter">
-                             <PlayCircle className="h-5 w-5 fill-current" /> urbacademy
-                          </div>
-                          <div className="text-right">
-                             <h1 className="text-3xl font-black text-blue-900 tracking-widest uppercase">Receipt</h1>
-                             <p className="text-[9px] text-gray-500 font-bold leading-none">Receipt No: RCT-20260409-8SJ2B1</p>
-                             <p className="text-[9px] text-gray-500">Date: 09 Apr 2026</p>
-                          </div>
+                  
+                  <div className="p-5 flex-1 flex flex-col">
+                    <div className="bg-black/20 rounded-xl p-8 mb-4 aspect-video flex flex-col items-center justify-center text-center gap-3">
+                       <div className="h-10 w-10 rounded-full bg-white/5 flex items-center justify-center">
+                          <Shield className="h-5 w-5 text-gray-600" />
                        </div>
-                       <div className="bg-blue-50 p-2 mb-6 border-l-4 border-blue-600 text-[8px] font-bold text-blue-900 uppercase">GST: 07AAICE7591H1Z8</div>
-                       <div className="grid grid-cols-2 gap-10 mb-auto text-[10px]">
-                          <div><p className="font-black text-blue-600 uppercase mb-1">From</p><p className="font-bold">UrbAcademy</p></div>
-                          <div><p className="font-black text-blue-600 uppercase mb-1">Received From</p><p className="font-bold">ravi o</p></div>
-                       </div>
-                       {/* Receipt Table Preview */}
-                       <div className="mt-4 border-t border-b border-gray-100 py-3">
-                         <div className="flex justify-between text-[8px] font-black text-blue-900 uppercase bg-blue-50/50 p-1.5 mb-2 rounded">
-                           <span className="w-8">#</span>
-                           <span className="flex-1 text-center">Description</span>
-                           <span className="w-20 text-center">Payment Date</span>
-                           <span className="w-16 text-center">Status</span>
-                           <span className="w-20 text-right">Amount</span>
-                         </div>
-                         <div className="flex justify-between text-[9px] px-1.5 font-medium border-b border-gray-50 pb-2">
-                           <span className="w-8">1</span>
-                           <span className="flex-1 text-center">Registration Payment</span>
-                           <span className="w-20 text-center text-gray-500 italic">09 Apr 2026</span>
-                           <span className="w-16 text-center"><span className="bg-green-100 text-green-700 px-1.5 py-0.5 rounded text-[7px] font-black">PAID</span></span>
-                           <span className="w-20 text-right font-black">₹4,300.00</span>
-                         </div>
-                       </div>
-                       <div className="absolute bottom-4 right-4"><div className="h-6 w-6 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-[8px]">人</div></div>
+                       <span className="text-[9px] font-bold text-gray-600 uppercase tracking-tighter leading-none">{doc.logo}</span>
+                    </div>
+                    
+                    <h3 className="text-xs font-bold text-white mb-3 line-clamp-1">{doc.title}</h3>
+
+                    {doc.verification && (
+                      <div className="flex items-center gap-1.5 text-green-500 mb-3">
+                         <CheckCircle2 className="h-3 w-3" />
+                         <span className="text-[9px] font-bold uppercase tracking-tight">{doc.verification}</span>
+                      </div>
+                    )}
+
+                    <div className="mt-auto space-y-2.5">
+                      <div className="bg-black/40 border border-white/5 rounded-lg flex items-center overflow-hidden min-h-[32px]">
+                        {doc.id && <span className="pl-3 text-[9px] font-mono text-gray-400 truncate max-w-[120px]">{doc.id}</span>}
+                        <button className="ml-auto flex items-center gap-1.5 px-3 py-2 text-[9px] font-bold text-gray-300 hover:text-white hover:bg-white/5 transition-colors border-l border-white/5">
+                           <Copy className="h-3 w-3" /> Copy PDF Link
+                        </button>
+                      </div>
+                      
+                      <div className="flex gap-2">
+                        <button className="flex-1 flex items-center justify-center gap-2 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-[9px] font-bold hover:bg-white/10 transition-colors">
+                          <ExternalLink className="h-3 w-3" /> Open Document
+                        </button>
+                        <button className="flex items-center justify-center gap-2 px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-gray-500 text-[9px] font-bold hover:text-white transition-colors">
+                          {doc.hasVerify ? (
+                            <><CheckCircle2 className="h-3 w-3" /> Verify</>
+                          ) : (
+                            <><Globe className="h-3 w-3" /> No Verify Link</>
+                          )}
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </div>
-                <div className="bg-black/40 border border-white/10 p-4 rounded-xl flex flex-col gap-2">
-                    <button className="w-full py-2 rounded-lg bg-[#0ea5e9] text-white text-xs font-bold flex items-center justify-center gap-2"><ExternalLink className="h-4 w-4" /> Open in New Tab</button>
-                    <button className="w-full py-2 rounded-lg border border-white/10 text-white text-xs font-bold flex items-center justify-center gap-2"><Download className="h-4 w-4" /> Download PDF</button>
-                </div>
-              </div>
+              ))}
             </div>
           </div>
         )

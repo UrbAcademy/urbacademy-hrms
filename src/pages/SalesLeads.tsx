@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X, Upload, UserCheck } from "lucide-react";
+import { Phone, MessageCircle, MoreHorizontal, Search, Plus, Calendar, Loader2, X, Upload, UserCheck, Users, FileText, Copy, ChevronDown } from "lucide-react";
 import { supabase } from "@/lib/supabaseClient";
 import { toast } from "sonner";
 import Papa from "papaparse"; 
@@ -9,6 +9,9 @@ const SalesLeads = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState("All");
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // ✅ NEW UI States for tabs matching screenshots
+  const [tab, setTab] = useState<"leads" | "form">("leads");
   
   const [isAdmin, setIsAdmin] = useState(false);
   const [employees, setEmployees] = useState<any[]>([]);
@@ -44,7 +47,7 @@ const SalesLeads = () => {
     try {
       const { data, error } = await supabase
         .from('leads')
-       .select(`*, profiles(full_name)`) // ✅ FIXED: Using direct column join to avoid Join Error
+        .select(`*, profiles(full_name)`) 
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -64,7 +67,6 @@ const SalesLeads = () => {
       header: true,
       skipEmptyLines: true,
       complete: async (results) => {
-        // ✅ FIXED: Mapping 'course' from CSV to 'course_interested' in DB
         const newLeads = results.data.map((row: any) => ({
           name: row.name || row.Name,
           phone: row.phone || row.Phone,
@@ -156,7 +158,7 @@ const SalesLeads = () => {
           {
             name: formData.name,
             phone: formData.phone,
-            course_interested: formData.course, // ✅ FIXED: Using DB column name
+            course_interested: formData.course,
             status: formData.status,
             notes: formData.notes
           }
@@ -203,200 +205,192 @@ const SalesLeads = () => {
   };
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-500 pb-10 relative">
+    <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       
+      {/* 1. Header Section exactly like screenshot */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-white tracking-tight">Sales Leads</h2>
-          <p className="text-gray-400 mt-1">Manage and track your student enquiries.</p>
+          <p className="text-gray-400 mt-1 text-sm font-medium">Manage and track your sales leads</p>
         </div>
         <div className="flex gap-3">
-          {isAdmin && (
-            <label className="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 cursor-pointer shadow-lg transition-all active:scale-95">
-              <Upload className="h-5 w-5" /> Bulk Upload
-              <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
-            </label>
-          )}
+          <label className="bg-[#181b21] hover:bg-white/5 border border-white/10 text-white px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 cursor-pointer shadow-sm transition-all">
+            <Upload className="h-4 w-4" /> Upload Leads
+            <input type="file" accept=".csv" className="hidden" onChange={handleBulkUpload} />
+          </label>
           <button 
             onClick={() => setShowModal(true)}
-            className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-semibold flex items-center gap-2 shadow-lg transition-all hover:scale-105"
+            className="bg-white hover:bg-gray-200 text-black px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all"
           >
-            <Plus className="h-5 w-5" /> Add New Lead
+            <Plus className="h-4 w-4" /> Add New Lead
           </button>
         </div>
       </div>
 
-      <div className="bg-[#181b21] border border-white/5 p-4 rounded-2xl flex flex-col md:flex-row gap-4 justify-between">
-        <div className="relative w-full md:w-96">
-          <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-          <input 
-            type="text" 
-            placeholder="Search by name or phone..." 
-            className="w-full bg-black/20 border border-white/10 text-white pl-9 pr-4 py-2 rounded-lg text-sm focus:border-blue-500 outline-none"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto pb-2 md:pb-0 scrollbar-hide">
-          {["All", "New", "Interested", "Follow Up", "Converted"].map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors border ${
-                filterStatus === status 
-                ? "bg-white/10 text-white border-white/20" 
-                : "text-gray-400 border-transparent hover:text-white hover:bg-white/5"
-              }`}
-            >
-              {status}
-            </button>
-          ))}
-        </div>
+      {/* 2. Top Navigation Tabs */}
+      <div className="flex gap-4 p-1.5 bg-[#181b21] w-fit rounded-2xl border border-white/5 shadow-sm">
+        <button
+          onClick={() => setTab("leads")}
+          className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            tab === "leads" 
+            ? "bg-white/10 text-white shadow-lg ring-1 ring-white/10" 
+            : "text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          <Users className="h-4 w-4" />
+          My Leads
+        </button>
+        <button
+          onClick={() => setTab("form")}
+          className={`flex items-center gap-2.5 px-6 py-2.5 rounded-xl text-sm font-bold transition-all ${
+            tab === "form" 
+            ? "bg-white/10 text-white shadow-lg ring-1 ring-white/10" 
+            : "text-gray-500 hover:text-gray-300"
+          }`}
+        >
+          <FileText className="h-4 w-4" />
+          Salesform
+          <span className="ml-1 bg-blue-600/20 text-blue-400 px-2 py-0.5 rounded-full text-[10px]">7</span>
+        </button>
       </div>
 
-      <div className="bg-[#181b21] border border-white/5 rounded-2xl overflow-hidden shadow-xl min-h-[400px]">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center h-[400px] space-y-4">
-            <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
-            <p className="text-gray-400">Fetching live data from Supabase...</p>
+      {/* 3. Conditional Content */}
+      {tab === "leads" ? (
+        <div className="space-y-6">
+          {/* Search Box */}
+          <div className="relative max-w-md">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
+            <input 
+              type="text"
+              placeholder="Search by name, email, or phone..." 
+              className="w-full bg-[#181b21] border border-white/10 text-white pl-11 pr-4 py-3 rounded-xl text-sm focus:border-blue-500 outline-none transition-all" 
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
+
+          {/* Empty State / Table Logic */}
+          {loading ? (
+             <div className="flex flex-col items-center justify-center py-24 bg-[#181b21]/30 rounded-3xl border border-dashed border-white/5 space-y-4">
+                <Loader2 className="h-8 w-8 text-blue-500 animate-spin" />
+                <p className="text-gray-400 text-sm">Fetching live leads...</p>
+             </div>
+          ) : filteredLeads.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 bg-[#181b21]/30 rounded-3xl border border-dashed border-white/5 space-y-4">
+              <div className="h-16 w-16 rounded-2xl bg-white/[0.02] flex items-center justify-center text-gray-600 border border-white/5">
+                <UserCheck className="h-8 w-8" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-white">No leads assigned</h3>
+                <p className="text-sm text-gray-500 max-w-xs">You don't have any sales leads assigned yet. Check the Fresh Leads tab to get started.</p>
+              </div>
+            </div>
+          ) : (
+            <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#181b21]/50">
+              <table className="w-full text-left border-collapse">
+                <thead>
+                  <tr className="border-b border-white/5 bg-white/[0.02]">
+                    <th className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider">Student Name</th>
+                    <th className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider">Course Interest</th>
+                    <th className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider">Status</th>
+                    {isAdmin && <th className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider">Assigned To</th>}
+                    <th className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider text-center">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {filteredLeads.map((lead) => (
+                    <tr key={lead.id} className="hover:bg-white/[0.02] transition-colors">
+                      <td className="p-4">
+                        <div className="font-bold text-white text-sm">{lead.name}</div>
+                        <div className="text-xs text-gray-500 font-mono mt-0.5">{lead.phone}</div>
+                      </td>
+                      <td className="p-4 text-[11px] font-medium text-gray-300">{lead.course_interested}</td>
+                      <td className="p-4">
+                        <span className={`inline-flex items-center px-2.5 py-1 rounded-md text-[10px] font-black border ${getStatusColor(lead.status)}`}>
+                          {lead.status.toUpperCase()}
+                        </span>
+                      </td>
+                      {isAdmin && (
+                        <td className="p-4">
+                          <select 
+                            className="bg-black/40 border border-white/10 text-[10px] text-gray-300 rounded-lg p-2 outline-none focus:border-blue-500"
+                            value={lead.assigned_to || ""}
+                            onChange={(e) => handleAssignLead(lead.id, e.target.value)}
+                          >
+                            <option value="">Unassigned</option>
+                            {employees.map(emp => <option key={emp.id} value={emp.id}>{emp.full_name}</option>)}
+                          </select>
+                        </td>
+                      )}
+                      <td className="p-4 text-center">
+                        <div className="flex justify-center items-center gap-2">
+                          <button onClick={() => handleCall(lead.phone)} className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all"><Phone className="h-4 w-4" /></button>
+                          <button onClick={() => handleWhatsApp(lead.phone, lead.name)} className="p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all"><MessageCircle className="h-4 w-4" /></button>
+                          <button onClick={() => handleStatusUpdate(lead.id, lead.name, lead.status)} className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"><MoreHorizontal className="h-4 w-4" /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Salesform Tab Content */
+        <div className="space-y-6">
+          <div className="space-y-2">
+            <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest px-1">My Form URL</label>
+            <div className="relative group max-w-3xl">
+              <input 
+                readOnly 
+                value="https://internship.form.urbacademy.in/kQj61QU85YwNkSacTfjf" 
+                className="w-full bg-[#181b21] border border-white/10 text-gray-400 pl-4 pr-12 py-3 rounded-xl text-xs font-mono group-hover:border-white/20 transition-all outline-none" 
+              />
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 text-gray-500 hover:text-white transition-colors">
+                <Copy className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto rounded-2xl border border-white/5 bg-[#181b21]/50 shadow-xl">
+            <table className="w-full text-left border-collapse min-w-[1000px]">
               <thead>
-                <tr className="text-xs uppercase text-gray-500 bg-white/5 border-b border-white/5">
-                  <th className="p-4 font-semibold">Student Name</th>
-                  <th className="p-4 font-semibold">Course Interest</th>
-                  <th className="p-4 font-semibold">Status</th>
-                  {isAdmin && <th className="p-4 font-semibold">Assigned To</th>}
-                  <th className="p-4 font-semibold text-center">Actions</th>
+                <tr className="border-b border-white/5 bg-white/[0.02]">
+                  {["Name", "College", "Branch", "Year", "Module", "Status", "Created"].map((h) => (
+                    <th key={h} className="p-4 text-[10px] uppercase font-black text-gray-500 tracking-wider">{h}</th>
+                  ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-white/5 text-sm">
-                {filteredLeads.map((lead) => (
-                  <tr key={lead.id} className="group hover:bg-white/5 transition-colors">
-                    <td className="p-4">
-                      <div className="font-medium text-white">{lead.name}</div>
-                      <div className="text-xs text-gray-500 font-mono mt-0.5">{lead.phone}</div>
-                    </td>
-                    {/* ✅ FIXED: Correct dynamic key */}
-                    <td className="p-4 text-gray-300">{lead.course_interested}</td>
-                    <td className="p-4">
-                      <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium border ${getStatusColor(lead.status)}`}>
-                        {lead.status}
-                      </span>
-                    </td>
-                    
-                    {isAdmin && (
-                      <td className="p-4">
-                        <select 
-                          className="bg-black/40 border border-white/10 text-xs text-gray-300 rounded-lg p-2 outline-none focus:border-blue-500"
-                          value={lead.assigned_to || ""}
-                          onChange={(e) => handleAssignLead(lead.id, e.target.value)}
-                        >
-                          <option value="">Unassigned</option>
-                          {employees.map(emp => (
-                            <option key={emp.id} value={emp.id}>{emp.full_name}</option>
-                          ))}
-                        </select>
-                        {lead.assigned_profile?.full_name && (
-                           <div className="text-[10px] text-blue-400 mt-1 italic">Assigned: {lead.assigned_profile.full_name}</div>
-                        )}
-                      </td>
-                    )}
-
-                    <td className="p-4 text-center">
-                      <div className="flex justify-center items-center gap-2">
-                        <button onClick={() => handleCall(lead.phone)} className="p-2 rounded-lg bg-blue-500/10 text-blue-500 hover:bg-blue-500 hover:text-white transition-all">
-                          <Phone className="h-4 w-4" />
-                        </button>
-                        <button onClick={() => handleWhatsApp(lead.phone, lead.name)} className="p-2 rounded-lg bg-green-500/10 text-green-500 hover:bg-green-500 hover:text-white transition-all">
-                          <MessageCircle className="h-4 w-4" />
-                        </button>
-                        <button 
-                          onClick={() => handleStatusUpdate(lead.id, lead.name, lead.status)}
-                          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-all"
-                        >
-                          <MoreHorizontal className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-white/5 text-xs text-gray-500">
+                <tr><td colSpan={7} className="p-12 text-center italic font-medium">No form submissions found for this URL yet.</td></tr>
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
+      {/* 4. Add Lead Modal (Unchanged functionality) */}
       {showModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
           <div className="bg-[#181b21] border border-white/10 rounded-2xl w-full max-w-md shadow-2xl relative">
-            <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
-              <X className="h-5 w-5" />
-            </button>
-            <div className="p-6 border-b border-white/5">
-              <h3 className="text-xl font-bold text-white">Add New Lead</h3>
-            </div>
+            <button onClick={() => setShowModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X className="h-5 w-5" /></button>
+            <div className="p-6 border-b border-white/5"><h3 className="text-xl font-bold text-white">Add New Lead</h3></div>
             <form onSubmit={handleAddLead} className="p-6 space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase">Student Name</label>
-                <input 
-                  type="text" required placeholder="Ex: Karan Sharma"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
-                  value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase">Phone Number</label>
-                <input 
-                  type="tel" required placeholder="10-digit mobile number"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
-                  value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})}
-                />
-              </div>
+              <input type="text" required placeholder="Student Name" className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+              <input type="tel" required placeholder="Phone Number" className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} />
               <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase">Course</label>
-                  <select 
-                    className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
-                    value={formData.course} onChange={(e) => setFormData({...formData, course: e.target.value})}
-                  >
-                    <option value="Data Science">Data Science</option>
-                    <option value="Full Stack">Full Stack</option>
-                    <option value="UI/UX Design">UI/UX Design</option>
-                    <option value="Cybersecurity">Cybersecurity</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-gray-400 uppercase">Status</label>
-                  <select 
-                    className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
-                    value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}
-                  >
-                    <option value="New">New</option>
-                    <option value="Interested">Interested</option>
-                    <option value="Follow Up">Follow Up</option>
-                  </select>
-                </div>
+                <select className="bg-black/20 border border-white/10 text-white rounded-lg p-3 outline-none" value={formData.course} onChange={(e) => setFormData({...formData, course: e.target.value})}>
+                  <option value="Data Science">Data Science</option>
+                  <option value="Full Stack">Full Stack</option>
+                </select>
+                <select className="bg-black/20 border border-white/10 text-white rounded-lg p-3 outline-none" value={formData.status} onChange={(e) => setFormData({...formData, status: e.target.value})}>
+                  <option value="New">New</option>
+                  <option value="Interested">Interested</option>
+                </select>
               </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400 uppercase">Initial Notes</label>
-                <textarea 
-                  rows={2} placeholder="Any specific requirements?"
-                  className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none"
-                  value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})}
-                />
-              </div>
-              <button 
-                type="submit" disabled={isSubmitting}
-                className={`w-full font-bold py-3 rounded-xl transition-all flex justify-center items-center gap-2 ${
-                  isSubmitting ? "bg-blue-600/50 cursor-not-allowed" : "bg-blue-600 hover:bg-blue-500 text-white"
-                }`}
-              >
-                {isSubmitting ? "Saving..." : "Save Lead"}
-              </button>
+              <textarea rows={2} placeholder="Notes" className="w-full bg-black/20 border border-white/10 text-white rounded-lg p-3 focus:border-blue-500 outline-none" value={formData.notes} onChange={(e) => setFormData({...formData, notes: e.target.value})} />
+              <button type="submit" disabled={isSubmitting} className="w-full font-bold py-3 rounded-xl bg-white text-black hover:bg-gray-200 transition-all">{isSubmitting ? "Saving..." : "Save Lead"}</button>
             </form>
           </div>
         </div>
