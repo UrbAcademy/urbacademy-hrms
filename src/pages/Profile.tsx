@@ -8,11 +8,12 @@ export default function MyProfile() {
   const [activeTab, setActiveTab] = useState("personal");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false); // NEW: Added state for loading spinner
   
   const [profileData, setProfileData] = useState({
     id: "",
-    employee_id: "", // NEW: Added Employee ID
-    avatar_url: "",  // NEW: Added Avatar URL
+    employee_id: "", 
+    avatar_url: "",  
     full_name: "",
     email: "",
     phone: "",
@@ -71,7 +72,6 @@ export default function MyProfile() {
           emergency_contact_name: profileData.emergency_contact_name,
           emergency_contact_relation: profileData.emergency_contact_relation,
           emergency_contact_phone: profileData.emergency_contact_phone,
-          // Note: To save avatar_url permanently, you'll need Supabase Storage buckets to upload the file first.
         })
         .eq('id', profileData.id);
 
@@ -90,15 +90,50 @@ export default function MyProfile() {
     toast.success(`${docType} selected for upload: ${file.name}`);
   };
 
-  // NEW: Handle Avatar Selection for immediate preview
-  const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // FIXED: Actual Upload Logic to Supabase
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    
-    // Creates a temporary local URL so the user can preview their image instantly
-    const objectUrl = URL.createObjectURL(file);
-    setProfileData(prev => ({ ...prev, avatar_url: objectUrl }));
-    toast.success("Profile picture updated! (Configure Supabase Storage to save permanently)");
+
+    try {
+      setUploadingAvatar(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("User not found");
+
+      // 1. Create a unique file path using user ID
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar_${Date.now()}.${fileExt}`;
+
+      // 2. Upload the file to the 'avatars' bucket
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // 3. Get the public URL for the image
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // 4. Save the URL to the user's profile in the database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: publicUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      // 5. Update local state so the image shows up instantly
+      setProfileData(prev => ({ ...prev, avatar_url: publicUrl }));
+      toast.success("Profile picture saved permanently!");
+
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(`Upload failed: ${error.message}`);
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   if (loading) return <div className="flex h-64 items-center justify-center"><Loader2 className="animate-spin text-blue-500 h-8 w-8" /></div>;
@@ -106,13 +141,18 @@ export default function MyProfile() {
   return (
     <div className="space-y-6 animate-in fade-in duration-500 pb-10">
       
-      {/* HEADER: Upgraded with Avatar and Dynamic ID */}
+      {/* HEADER */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 bg-[#181b21] p-6 rounded-3xl border border-white/5 shadow-xl">
         
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-6 w-full">
           {/* PROFILE AVATAR CIRCLE */}
           <div className="relative group shrink-0">
-            <div className="h-24 w-24 rounded-full border-4 border-[#0a0a0a] bg-gray-800 overflow-hidden flex items-center justify-center shadow-lg">
+            <div className="h-24 w-24 rounded-full border-4 border-[#0a0a0a] bg-gray-800 overflow-hidden flex items-center justify-center shadow-lg relative">
+              {uploadingAvatar && (
+                <div className="absolute inset-0 bg-black/60 flex items-center justify-center z-10">
+                   <Loader2 className="animate-spin text-blue-500 h-6 w-6" />
+                </div>
+              )}
               {profileData.avatar_url ? (
                 <img src={profileData.avatar_url} alt="Profile" className="h-full w-full object-cover" />
               ) : (
@@ -120,9 +160,9 @@ export default function MyProfile() {
               )}
             </div>
             {/* Upload Button Overlay */}
-            <label className="absolute bottom-0 right-0 h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer border-2 border-[#181b21] shadow-lg group-hover:bg-blue-500 transition-colors">
-              <Camera size={14} className="text-white" />
-              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} />
+            <label className="absolute bottom-0 right-0 h-8 w-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer border-2 border-[#181b21] shadow-lg hover:bg-blue-500 transition-colors z-20">
+              {uploadingAvatar ? <Loader2 size={14} className="text-white animate-spin" /> : <Camera size={14} className="text-white" />}
+              <input type="file" className="hidden" accept="image/*" onChange={handleAvatarUpload} disabled={uploadingAvatar} />
             </label>
           </div>
 
@@ -136,7 +176,6 @@ export default function MyProfile() {
             </p>
             
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2">
-              {/* DYNAMIC ID BADGE */}
               <span className="bg-[#2a2d36] text-white px-3 py-1.5 rounded-full text-[11px] font-bold tracking-wider border border-white/10">
                 {profileData.employee_id || `EMP-${profileData.id?.substring(0,6).toUpperCase() || "NEW"}`}
               </span>

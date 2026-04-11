@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, Mail, Phone, BadgeCheck, Edit, CalendarDays, ShoppingCart, Clock, GraduationCap, Briefcase, Crown } from "lucide-react";
+import { IndianRupee, CreditCard, TrendingUp, Trophy, Calendar, Mail, Phone, BadgeCheck, Edit, CalendarDays, ShoppingCart, Clock, GraduationCap, Briefcase, Crown, User } from "lucide-react";
 import { motivationalQuotes, topPerformers, formatCurrency } from "@/lib/mock-data";
 import ClockInWidget from "@/components/ClockInWidget";
 import { supabase } from "@/lib/supabaseClient";
@@ -91,7 +91,7 @@ export default function Dashboard() {
         {/* ================= LEFT COLUMN (Spans 2) ================= */}
         <div className="xl:col-span-2 space-y-6">
           
-          {/* ✅ REVENUE OVERVIEW (Exactly matching Image 2) */}
+          {/* ✅ REVENUE OVERVIEW */}
           <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
             <h3 className="text-[15px] font-semibold text-card-foreground flex items-center gap-2 mb-6">
               <IndianRupee className="h-[18px] w-[18px] text-muted-foreground" /> Revenue Overview
@@ -139,7 +139,7 @@ export default function Dashboard() {
           {/* BOTTOM ROW: TOP PERFORMERS & EVENTS */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* ✅ TOP PERFORMERS (Podium View exactly like Image 2) */}
+            {/* ✅ TOP PERFORMERS */}
             <div className="rounded-2xl border border-border bg-card p-6 shadow-sm flex flex-col min-h-[240px]">
               <h3 className="text-[15px] font-semibold text-card-foreground flex items-center gap-2 mb-8">
                 <Trophy className="h-[18px] w-[18px] text-yellow-500" /> Top Performers
@@ -198,7 +198,7 @@ export default function Dashboard() {
           
           <ClockInWidget /> 
 
-          {/* ✅ SLEEK PROFILE CARD (Exactly like Image 2 right side) */}
+          {/* ✅ SLEEK PROFILE CARD */}
           <div className="rounded-2xl border border-border bg-card shadow-lg overflow-hidden relative">
             
             {/* Blue Banner Header */}
@@ -213,18 +213,24 @@ export default function Dashboard() {
             {/* Content Section */}
             <div className="px-6 pt-10 pb-6 relative">
               
-              {/* Overlapping Avatar */}
+              {/* Overlapping Avatar (FIXED to show uploaded image) */}
               <div className="absolute -top-10 left-6">
-                <div className="h-[76px] w-[76px] rounded-full border-[5px] border-card bg-primary flex items-center justify-center text-2xl font-black text-white shadow-md">
-                  {userInitials}
+                <div className="h-[76px] w-[76px] rounded-full border-[5px] border-card bg-primary flex items-center justify-center text-2xl font-black text-white shadow-md overflow-hidden">
+                  {user?.avatar_url ? (
+                    <img src={user.avatar_url} alt="Profile" className="h-full w-full object-cover" />
+                  ) : (
+                    userInitials
+                  )}
                 </div>
               </div>
 
-              {/* Name & Role */}
+              {/* Name & Role (FIXED dynamic ID) */}
               <div className="mt-1">
                 <h3 className="text-xl font-bold text-card-foreground leading-tight">{displayName}</h3>
                 <p className="text-blue-500 text-[13px] font-semibold mt-1.5">{user?.role === 'admin' ? 'Administrator' : 'Business Development Associate'}</p>
-                <p className="text-muted-foreground text-[11px] mt-0.5 tracking-wide">{user?.employee_id || "EMP-PENDING"}</p>
+                <p className="text-muted-foreground text-[11px] mt-0.5 tracking-wide">
+                  {user?.employee_id || `EMP-${user?.id?.substring(0,6).toUpperCase() || "NEW"}`}
+                </p>
               </div>
 
               {/* Detail List */}
