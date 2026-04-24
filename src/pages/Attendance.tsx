@@ -31,10 +31,10 @@ const OFFICE_LOCATION: [number, number] = [28.498482, 77.382503];
 const RADIUS_METERS = 100;
 
 const statusColors: Record<string, string> = {
-  present: "bg-success/20 text-success",
+  present: "bg-success/20 text-success border-success/30",
   late: "bg-destructive/20 text-destructive",
   halfday: "bg-chart-4/20 text-chart-4",
-  absent: "bg-muted text-muted-foreground",
+  absent: "bg-red-500/20 text-red-500 border border-red-500/30",
 };
 
 const statusLabels: Record<string, string> = {
@@ -122,20 +122,61 @@ export default function Attendance() {
     } catch (error) { console.error("Error loading attendance:", error); } finally { setLoading(false); }
   }
 
+  // ==========================================
+  // UPDATED: 7-HOUR INDUSTRY STANDARD HR MATH
+  // ==========================================
   async function handleAttendanceAction() {
     if (!isLocationVerified) return toast.error("Please verify location first!");
     try {
       setActionLoading(true);
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      
       const todayStr = new Date().toISOString().split('T')[0];
       const nowIso = new Date().toISOString();
+      
       if (!todayRecord) {
-        const { error } = await supabase.from('attendance').insert([{ user_id: user.id, status: 'present', date: todayStr, clock_in_time: nowIso }]);
+        // --- CLOCK IN ---
+        const { error } = await supabase.from('attendance').insert([{ 
+          user_id: user.id, 
+          status: 'present', 
+          date: todayStr, 
+          clock_in_time: nowIso 
+        }]);
         if (error) throw error;
         toast.success("Clocked in successfully!");
+        
       } else {
-        const { error } = await supabase.from('attendance').update({ clock_out_time: nowIso }).eq('id', todayRecord.id);
+        // --- CLOCK OUT (Math logic applied here!) ---
+        const clockOutTime = new Date(nowIso);
+        const clockInTime = new Date(todayRecord.clock_in_time);
+        
+        // Calculate difference in milliseconds, then convert to hours
+        const diffInMs = clockOutTime.getTime() - clockInTime.getTime();
+        const hoursWorked = diffInMs / (1000 * 60 * 60);
+        
+        let finalStatus = 'absent';
+        
+        // Apply 7-Hour Rules
+        if (hoursWorked >= 7) {
+          finalStatus = 'present';
+        } else if (hoursWorked >= 4) {
+          finalStatus = 'halfday';
+          toast.info("Shift logged between 4-7 hours. Marked as Half Day.");
+        } else {
+          finalStatus = 'absent';
+          toast.error("Shift too short! Less than 4 hours worked. Marked Absent.");
+        }
+
+        // Send final verdict to database
+        const { error } = await supabase
+          .from('attendance')
+          .update({ 
+            clock_out_time: nowIso,
+            status: finalStatus 
+          })
+          .eq('id', todayRecord.id);
+          
         if (error) throw error;
         toast.success("Clocked out successfully!");
       }
@@ -183,7 +224,6 @@ export default function Attendance() {
           </div>
         </div>
 
-        {/* ✅ FIXED: Added 'style' prop and removed whitespace for Leaflet v4 compatibility */}
         <div className="bg-[#181b21] border border-white/5 rounded-3xl overflow-hidden min-h-[400px] shadow-2xl relative">
           <MapContainer center={OFFICE_LOCATION} zoom={15} className="z-0" style={{ height: '100%', width: '100%' }}>
             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
